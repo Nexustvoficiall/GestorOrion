@@ -3,7 +3,7 @@ const cors = require('cors');
 const path = require('path');
 const session = require('express-session');
 
-const { sequelize, User } = require('./models');
+const { sequelize, User, Tenant } = require('./models');
 const bcrypt = require('bcryptjs');
 const { requireAuth } = require('./middlewares/authMiddleware');
 const enforceTenant = require('./middlewares/enforceTenant');
@@ -77,13 +77,14 @@ app.use('/dashboard', (req, res, next) => {
 /* ROTA RAIZ */
 app.get('/', (req, res) => res.redirect('/login'));
 
-/* ===== RESET DE EMERGÊNCIA (apenas localhost) ===== */
+/* ===== RESET DE EMERGÊNCIA (localhost ou token secreto) ===== */
 app.get('/reset-admin', async (req, res) => {
     const ip = req.ip || req.connection.remoteAddress || '';
     const isLocal = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
-    if (!isLocal) return res.status(403).send('Acesso negado.');
+    const resetToken = process.env.RESET_TOKEN;
+    const tokenOk = resetToken && req.query.token === resetToken;
+    if (!isLocal && !tokenOk) return res.status(403).send('Acesso negado. Use ?token=SEU_RESET_TOKEN');
     try {
-        const fs = require('fs');
         const DEFAULT_USER = 'master';
         const DEFAULT_PASS = process.env.MASTER_PASS || 'MasterOrion2026$';
         let user = await User.findOne({ where: { role: 'master' } });
@@ -93,17 +94,36 @@ app.get('/reset-admin', async (req, res) => {
         } else {
             await User.create({ username: DEFAULT_USER, password: hash, role: 'master', tenantId: null });
         }
-        const file = path.join(__dirname, 'ACESSO_MASTER.txt');
-        fs.writeFileSync(file, [
-            '====================================',
-            '  GESTOR ORION — MASTER RESET',
-            '====================================',
-            `  Usuario : ${DEFAULT_USER}`,
-            `  Senha   : ${DEFAULT_PASS}`,
-            `  Resetado: ${new Date().toLocaleString('pt-BR')}`,
-            '====================================',
-        ].join('\n'), 'utf8');
-        res.send(`<h2 style="font-family:monospace;color:green">✅ Master resetado!<br><br>Usuário: <b>${DEFAULT_USER}</b><br>Senha: <b>${DEFAULT_PASS}</b><br><br><a href="/login">Ir para Login</a></h2>`);
+
+        // Recriar tenant padrão + admin se não existir
+        let adminInfo = '';
+        const tenantCount = await Tenant.count();
+        if (tenantCount === 0) {
+            const adminUser = process.env.ADMIN_USER || 'admin';
+            const adminPass = process.env.ADMIN_PASS || 'GestorOrion2026$';
+            const tenant = await Tenant.create({
+                name: 'Gestor Orion', slug: 'gestor-orion', brandName: 'Gestor Orion',
+                primaryColor: '#1a6fff', plan: 'PRO', isActive: true, licenseExpiration: null
+            });
+            const aHash = await bcrypt.hash(adminPass, 10);
+            await User.create({ username: adminUser, password: aHash, role: 'admin', tenantId: tenant.id });
+            adminInfo = `<br>Admin: <b>${adminUser}</b> / <b>${adminPass}</b>`;
+        } else {
+            // Resetar senha do primeiro admin existente
+            const adminUser2 = await User.findOne({ where: { role: 'admin' } });
+            if (adminUser2) {
+                const adminPass2 = process.env.ADMIN_PASS || 'GestorOrion2026$';
+                const aHash2 = await bcrypt.hash(adminPass2, 10);
+                await adminUser2.update({ password: aHash2 });
+                adminInfo = `<br>Admin: <b>${adminUser2.username}</b> / <b>${adminPass2}</b>`;
+            }
+        }
+
+        res.send(`<h2 style="font-family:monospace;background:#000;color:#0f0;padding:30px">
+            ✅ Reset OK!<br><br>
+            Master: <b>${DEFAULT_USER}</b> / <b>${DEFAULT_PASS}</b>${adminInfo}
+            <br><br><a href="/login" style="color:#4af">→ Ir para Login</a>
+        </h2>`);
     } catch (e) {
         res.status(500).send('Erro: ' + e.message);
     }
@@ -123,14 +143,60 @@ app.use('/report',          requireAuth, enforceTenant, require('./routes/report
 app.use('/servers',         requireAuth, enforceTenant, require('./routes/serverRoutes'));
 app.use('/resellerservers', requireAuth, enforceTenant, require('./routes/resellerServerRoutes'));
 
-/* ===== BOOT DO MASTER ADMIN ===== */
+/* ===== BOOT DO MASTER ADMIN + TENANT PADRÃO ===== */
 async function ensureMasterAdmin() {
-    const exists = await User.findOne({ where: { role: 'master' } });
-    if (!exists) {
+    const fs = require('fs');
+
+    // 1. Garante usuário master
+    let master = await User.findOne({ where: { role: 'master' } });
+    if (!master) {
         const pass = process.env.MASTER_PASS || 'MasterOrion2026$';
         const hash = await bcrypt.hash(pass, 10);
-        await User.create({ username: 'master', password: hash, role: 'master', tenantId: null });
-        console.log('✅ Master admin criado (usuário: master)');
+        master = await User.create({ username: 'master', password: hash, role: 'master', tenantId: null });
+        console.log('✅ Master admin criado  →  usuário: master  |  senha:', pass);
+    }
+
+    // 2. Se não existe nenhum tenant, cria o tenant padrão + admin
+    const tenantCount = await Tenant.count();
+    if (tenantCount === 0) {
+        const adminUser  = process.env.ADMIN_USER  || 'admin';
+        const adminPass  = process.env.ADMIN_PASS  || 'GestorOrion2026$';
+        const tenantName = process.env.TENANT_NAME || 'Gestor Orion';
+
+        const tenant = await Tenant.create({
+            name:             tenantName,
+            slug:             tenantName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+            brandName:        tenantName,
+            primaryColor:     '#1a6fff',
+            plan:             'PRO',
+            isActive:         true,
+            licenseExpiration: null
+        });
+
+        const hash = await bcrypt.hash(adminPass, 10);
+        await User.create({
+            username: adminUser,
+            password: hash,
+            role:     'admin',
+            tenantId: tenant.id
+        });
+
+        const creds = [
+            '====================================',
+            '  GESTOR ORION — CREDENCIAIS BOOT',
+            '====================================',
+            `  Master  : master / ${process.env.MASTER_PASS || 'MasterOrion2026$'}`,
+            `  Admin   : ${adminUser} / ${adminPass}`,
+            `  Tenant  : ${tenantName} (${tenant.id})`,
+            `  Criado  : ${new Date().toLocaleString('pt-BR')}`,
+            '====================================',
+        ].join('\n');
+
+        console.log('\n' + creds + '\n');
+
+        try {
+            fs.writeFileSync(require('path').join(__dirname, 'ACESSO_ADMIN.txt'), creds, 'utf8');
+        } catch (_) { /* Railway filesystem é efêmero, só loga */ }
     }
 }
 

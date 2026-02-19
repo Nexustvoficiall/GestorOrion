@@ -334,11 +334,13 @@
     </section>
     <!-- Criar usuário revendedor -->
     <section class="panel">
-        <h2>CRIAR ACESSO PARA REVENDEDOR</h2>
-        <p class="panel-desc">Crie um login para um revendedor j&aacute; cadastrado acessar o painel.</p>
-        <div class="form-row" style="margin-top:14px">
-            <div class="field"><label>Usu&aacute;rio</label><input id="nu_username" placeholder="Ex: joao123"></div>
-            <div class="field"><label>Senha</label><input id="nu_password" type="password" placeholder="Senha de acesso"></div>
+        <h2>&#128273; CRIAR ACESSO PARA REVENDEDOR</h2>
+        <p class="panel-desc">Gere um login para um revendedor acessar o painel. Escolha o per&iacute;odo de licen&ccedil;a &mdash; apenas <strong>Plano Standard</strong> dispon&iacute;vel.</p>
+
+        <!-- Linha 1: dados de acesso -->
+        <div class="form-row" style="margin-top:16px">
+            <div class="field"><label>Usu&aacute;rio</label><input id="nu_username" placeholder="Ex: joao123" autocomplete="off"></div>
+            <div class="field"><label>Senha</label><input id="nu_password" type="password" placeholder="Senha de acesso" autocomplete="new-password"></div>
             <div class="field">
                 <label>Perfil</label>
                 <select id="nu_role" onchange="onNuRoleChange()">
@@ -350,16 +352,47 @@
                 <label>Vincular Revenda</label>
                 <select id="nu_reseller"><option value="">&mdash; Selecione &mdash;</option></select>
             </div>
-            <div class="field" id="nu_plan_wrap">
-                <label>Plano de Acesso ao Painel</label>
-                <select id="nu_accessPlan">
-                    <option value="30d">30 dias &mdash; Standard</option>
-                    <option value="3m">3 meses &mdash; Standard</option>
-                    <option value="6m" selected>6 meses &mdash; Standard</option>
-                    <option value="1a">1 ano &mdash; Standard</option>
-                </select>
+        </div>
+
+        <!-- Cards de plano (visíveis só para Revendedor) -->
+        <div id="nu_plan_wrap" style="margin-top:18px">
+            <label style="font-size:10px;letter-spacing:2px;color:var(--text-muted,#888);display:block;margin-bottom:10px">PLANO DE ACESSO AO PAINEL</label>
+            <div class="plan-cards">
+                <div class="plan-card" data-plan="1m" onclick="selectPlanCard(this,'1m')">
+                    <div class="plan-card-period">1 M&Ecirc;S</div>
+                    <div class="plan-card-label">Standard</div>
+                    <div class="plan-card-days">30 dias</div>
+                </div>
+                <div class="plan-card" data-plan="3m" onclick="selectPlanCard(this,'3m')">
+                    <div class="plan-card-period">3 MESES</div>
+                    <div class="plan-card-label">Standard</div>
+                    <div class="plan-card-days">90 dias</div>
+                </div>
+                <div class="plan-card plan-card-selected" data-plan="6m" onclick="selectPlanCard(this,'6m')">
+                    <div class="plan-card-badge">POPULAR</div>
+                    <div class="plan-card-period">6 MESES</div>
+                    <div class="plan-card-label">Standard</div>
+                    <div class="plan-card-days">180 dias</div>
+                </div>
+                <div class="plan-card" data-plan="1a" onclick="selectPlanCard(this,'1a')">
+                    <div class="plan-card-badge" style="background:var(--accent)">MELHOR</div>
+                    <div class="plan-card-period">1 ANO</div>
+                    <div class="plan-card-label">Standard</div>
+                    <div class="plan-card-days">365 dias</div>
+                </div>
             </div>
-            <div class="field btn-field"><button onclick="createUserReseller()">CRIAR ACESSO</button></div>
+            <input type="hidden" id="nu_accessPlan" value="6m">
+
+            <!-- Preview da licença -->
+            <div id="nu_plan_preview" style="margin-top:14px;padding:12px 16px;border:1px solid var(--accent3,#0055cc);background:var(--accent-dim,#1a6fff11);font-size:11px;letter-spacing:1px;display:flex;gap:32px;align-items:center;flex-wrap:wrap">
+                <span>&#128197; <strong>IN&Iacute;CIO:</strong> <span id="prev_start"></span></span>
+                <span>&#9200; <strong>EXPIRA&Ccedil;&Atilde;O:</strong> <span id="prev_expiry" style="color:var(--accent2,#4499ff)"></span></span>
+                <span>&#128262; <strong>PLANO:</strong> <span id="prev_plan">STANDARD &mdash; 6 MESES</span></span>
+            </div>
+        </div>
+
+        <div class="btn-row" style="margin-top:18px">
+            <button onclick="createUserReseller()" style="min-width:180px">&#43; CRIAR ACESSO</button>
         </div>
     </section>
     <section class="panel">

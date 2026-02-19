@@ -1422,3 +1422,81 @@ tbody tr:hover { background: var(--bg-card); }
         padding-bottom: max(16px, env(safe-area-inset-bottom));
     }
 }
+
+/* ================================================================
+   CARDS DE PLANO — Criar Acesso Revendedor
+   ================================================================ */
+.plan-cards {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.plan-card {
+    position: relative;
+    flex: 1 1 110px;
+    max-width: 160px;
+    min-width: 100px;
+    border: 2px solid var(--border2);
+    background: var(--bg-card);
+    padding: 18px 12px 14px;
+    cursor: pointer;
+    text-align: center;
+    transition: border-color .15s, background .15s, transform .1s;
+    border-radius: 3px;
+    user-select: none;
+}
+
+.plan-card:hover {
+    border-color: var(--accent2, #4499ff);
+    transform: translateY(-2px);
+}
+
+.plan-card-selected {
+    border-color: var(--accent, #1a6fff) !important;
+    background: var(--accent-dim, #1a6fff15) !important;
+    box-shadow: 0 0 12px var(--accent-glow, #1a6fff44);
+}
+
+.plan-card-badge {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--accent3, #0055cc);
+    color: #fff;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    padding: 2px 8px;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    white-space: nowrap;
+    border-radius: 2px;
+}
+
+.plan-card-period {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent, #1a6fff);
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+}
+
+.plan-card-label {
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--text-muted, #888);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+.plan-card-days {
+    font-size: 10px;
+    color: var(--text2, #aaa);
+    letter-spacing: 1px;
+}
+
+.plan-card-selected .plan-card-period {
+    color: var(--accent2, #4499ff);
+}

@@ -162,7 +162,7 @@ function switchTab(name) {
     const btn = document.querySelector('[data-tab="' + name + '"]');
     if (btn) btn.classList.add('active');
     if (name === 'financeiro') loadMetrics();
-    if (name === 'admin') { loadResellerSelect(); loadUsers(); loadLicenseInfo(); }
+    if (name === 'admin') { loadResellerSelect(); loadUsers(); loadLicenseInfo(); updatePlanPreview('6m'); }
     if (name === 'servidores') loadServers();
 }
 
@@ -383,14 +383,42 @@ async function loadResellerSelect() {
     } catch (e) {}
 }
 
+/* ===== CARDS DE PLANO ===== */
+const PLAN_DAYS_MAP = { '1m': 30, '3m': 90, '6m': 180, '1a': 365 };
+const PLAN_LABEL_MAP = { '1m': '1 M\u00caS', '3m': '3 MESES', '6m': '6 MESES', '1a': '1 ANO' };
+
+function selectPlanCard(el, plan) {
+    document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('plan-card-selected'));
+    el.classList.add('plan-card-selected');
+    const inp = document.getElementById('nu_accessPlan');
+    if (inp) inp.value = plan;
+    updatePlanPreview(plan);
+}
+
+function updatePlanPreview(plan) {
+    const days = PLAN_DAYS_MAP[plan] || 30;
+    const start = new Date();
+    const expiry = new Date();
+    expiry.setDate(expiry.getDate() + days);
+    const fmt = d => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const els = {
+        start:  document.getElementById('prev_start'),
+        expiry: document.getElementById('prev_expiry'),
+        plan:   document.getElementById('prev_plan')
+    };
+    if (els.start)  els.start.textContent  = fmt(start);
+    if (els.expiry) els.expiry.textContent = fmt(expiry);
+    if (els.plan)   els.plan.textContent   = 'STANDARD \u2014 ' + (PLAN_LABEL_MAP[plan] || plan);
+}
+
 async function createUserReseller() {
     const username   = document.getElementById('nu_username').value.trim();
     const password   = document.getElementById('nu_password').value;
     const role       = document.getElementById('nu_role')?.value || 'reseller';
     const resellerId = document.getElementById('nu_reseller').value;
-    const accessPlan = document.getElementById('nu_accessPlan')?.value || '30d';
+    const accessPlan = document.getElementById('nu_accessPlan')?.value || '1m';
     if (!username || !password) { alert('Informe usu\u00e1rio e senha!'); return; }
-    if (role === 'reseller' && !accessPlan) { alert('Selecione o plano de acesso!'); return; }
+    if (role === 'reseller' && !resellerId) { alert('Selecione a revenda para vincular!'); return; }
     try {
         const res = await fetch('/auth/users', {
             method: 'POST',
@@ -400,9 +428,10 @@ async function createUserReseller() {
         });
         const data = await res.json();
         if (!res.ok) { alert('\u274c ' + (data.error || 'Erro')); return; }
-        const planLabel = { '30d': '30 dias', '3m': '3 meses', '6m': '6 meses', '1a': '1 ano' }[accessPlan] || accessPlan;
-        const expMsg = data.panelExpiry ? ' | Expira: ' + new Date(data.panelExpiry).toLocaleDateString('pt-BR') : '';
-        alert('\u2705 Acesso criado!\nUsu\u00e1rio: ' + username + '\nPerfil: ' + role.toUpperCase() + (role === 'reseller' ? '\nPlano: STANDARD ' + planLabel + expMsg : ''));
+        const expMsg = data.panelExpiry
+            ? new Date(data.panelExpiry).toLocaleDateString('pt-BR')
+            : '\u2014';
+        showFlash('\u2705 Acesso criado! Usu\u00e1rio: ' + username + (role === 'reseller' ? ' | Expira: ' + expMsg : ''));
         document.getElementById('nu_username').value = '';
         document.getElementById('nu_password').value = '';
         document.getElementById('nu_role').value = 'reseller';
@@ -411,11 +440,15 @@ async function createUserReseller() {
     } catch (e) { alert('\u274c Erro ao criar acesso.'); }
 }
 
-// Mostra/oculta seletor de plano conforme o perfil selecionado
+// Mostra/oculta cards de plano conforme o perfil selecionado
 function onNuRoleChange() {
     const role = document.getElementById('nu_role')?.value || 'reseller';
     const planWrap = document.getElementById('nu_plan_wrap');
     if (planWrap) planWrap.style.display = (role === 'reseller') ? '' : 'none';
+    if (role === 'reseller') {
+        const current = document.getElementById('nu_accessPlan')?.value || '6m';
+        updatePlanPreview(current);
+    }
 }
 
 async function loadUsers() {

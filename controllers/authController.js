@@ -71,7 +71,7 @@ exports.me = (req, res) => {
 };
 
 // Mapa de planos → dias de acesso
-const PLAN_DAYS = { '30d': 30, '3m': 90, '6m': 180, '1a': 365 };
+const PLAN_DAYS = { '1m': 30, '30d': 30, '3m': 90, '6m': 180, '1a': 365 };
 
 exports.createReseller = async (req, res) => {
     try {

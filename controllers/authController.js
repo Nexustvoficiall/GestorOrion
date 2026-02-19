@@ -1,5 +1,6 @@
 const { User } = require('../models');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { audit } = require('../middlewares/authMiddleware');
@@ -33,7 +34,8 @@ exports.login = async (req, res) => {
             username:   user.username,
             role:       user.role,
             resellerId: user.resellerId,
-            tenantId:   user.tenantId || null
+            tenantId:   user.tenantId || null,
+            firstLogin: user.firstLogin !== false  // true no primeiro acesso
         };
 
         await audit(req, 'LOGIN', 'User', user.id, { username: user.username });
@@ -142,6 +144,55 @@ exports.changePassword = async (req, res) => {
 exports.listUsers = async (req, res) => {
     const tenantId = req.session?.user?.tenantId;
     const where = tenantId ? { tenantId } : {};
-    const users = await User.findAll({ where, attributes: ['id', 'username', 'role', 'resellerId'] });
+    const users = await User.findAll({ where, attributes: ['id', 'username', 'role', 'resellerId', 'firstLogin'] });
     res.json(users);
+};
+
+/* GERAR TOKEN DE RESET (admin/master para outro usuário) */
+exports.generateResetToken = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const callerRole = req.session?.user?.role;
+        const tenantId   = req.tenantId || req.session?.user?.tenantId;
+        // master acessa qualquer usuário; admin só do próprio tenant
+        const where = (callerRole === 'master') ? { id: userId } : { id: userId, tenantId };
+        const user = await User.findOne({ where });
+        if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+        const token  = crypto.randomBytes(32).toString('hex');
+        const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        await user.update({ resetToken: token, resetTokenExpiry: expiry });
+        res.json({ ok: true, token });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Erro ao gerar token' });
+    }
+};
+
+/* REDEFINIR SENHA POR TOKEN (rota pública) */
+exports.resetByToken = async (req, res) => {
+    try {
+        const { token, newPassword } = req.body;
+        if (!token || !newPassword) return res.status(400).json({ error: 'Dados incompletos' });
+        if (newPassword.length < 4) return res.status(400).json({ error: 'Senha muito curta (mínimo 4)' });
+        const user = await User.findOne({ where: { resetToken: token } });
+        if (!user) return res.status(400).json({ error: 'Token inválido ou já utilizado' });
+        if (new Date() > new Date(user.resetTokenExpiry)) return res.status(400).json({ error: 'Token expirado (válido por 24h)' });
+        const hash = await bcrypt.hash(newPassword, 10);
+        await user.update({ password: hash, resetToken: null, resetTokenExpiry: null, firstLogin: false });
+        res.json({ ok: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Erro ao redefinir senha' });
+    }
+};
+
+/* MARCAR PRIMEIRO LOGIN COMO CONCLUÍDO */
+exports.markFirstLoginDone = async (req, res) => {
+    try {
+        await User.update({ firstLogin: false }, { where: { id: req.session.user.id } });
+        req.session.user.firstLogin = false;
+        req.session.save(() => res.json({ ok: true }));
+    } catch (err) {
+        res.status(500).json({ error: 'Erro interno' });
+    }
 };

@@ -276,6 +276,10 @@ async function loadUserInfo() {
         }
         // Configura seletor de perfil de usuário
         setupUserRoleSelector();
+        // Mostra onboarding no primeiro acesso (não mostra para master)
+        if (user.firstLogin && user.role !== 'master') {
+            document.getElementById('modalOnboarding').style.display = 'flex';
+        }
     } catch (e) {
         window.location.href = '/login';
     }
@@ -411,12 +415,46 @@ async function loadUsers() {
         if (!tb) return;
         tb.innerHTML = users.map(u => `
             <tr>
-                <td>${u.username}</td>
+                <td>${u.username}${u.firstLogin ? ' <span style="font-size:10px;color:#ff9800">●PRIMEIRO ACESSO</span>' : ''}</td>
                 <td><span class="badge ${u.role === 'reseller' ? 'badge-pendente' : 'badge-pago'}">${u.role.toUpperCase()}</span></td>
                 <td>${u.resellerId || '-'}</td>
+                <td><button class="btn-sm" style="font-size:10px" onclick="generateUserResetToken(${u.id}, '${u.username.replace(/'/g,'')}')">&#128273; Reset Senha</button></td>
             </tr>
         `).join('');
     } catch (e) {}
+}
+
+/* ===== ONBOARDING ===== */
+function closeOnboarding() {
+    document.getElementById('modalOnboarding').style.display = 'none';
+    fetch('/auth/first-login-done', { method: 'POST', credentials: 'include' }).catch(() => {});
+}
+
+/* ===== RESET SENHA DE USUÁRIO ===== */
+let _resetLinkUrl = '';
+async function generateUserResetToken(userId, username) {
+    if (!confirm('Gerar link de reset de senha para "' + username + '"?\nO link expira em 24 horas.')) return;
+    try {
+        const res = await fetch('/auth/users/' + userId + '/reset-token', {
+            method: 'POST', credentials: 'include'
+        });
+        const data = await res.json();
+        if (!res.ok) { alert('\u274c ' + (data.error || 'Erro')); return; }
+        const base = window.location.origin;
+        _resetLinkUrl = base + '/reset-password?token=' + data.token;
+        document.getElementById('resetLinkInput').value = _resetLinkUrl;
+        document.getElementById('modalResetLink').style.display = 'flex';
+    } catch (e) { alert('\u274c Erro ao gerar token.'); }
+}
+
+function copyResetLink() {
+    navigator.clipboard.writeText(_resetLinkUrl).then(() => {
+        showFlash('\u2705 Link copiado! Envie para o usuário via WhatsApp.');
+    }).catch(() => {
+        document.getElementById('resetLinkInput').select();
+        document.execCommand('copy');
+        showFlash('\u2705 Link copiado!');
+    });
 }
 
 /* ===== CRIAR CLIENTE ===== */

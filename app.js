@@ -143,6 +143,113 @@ app.use('/report',          requireAuth, enforceTenant, require('./routes/report
 app.use('/servers',         requireAuth, enforceTenant, require('./routes/serverRoutes'));
 app.use('/resellerservers', requireAuth, enforceTenant, require('./routes/resellerServerRoutes'));
 
+/* PÁGINA REDEFINIR SENHA (pública, token via query) */
+app.get('/reset-password', (req, res) => {
+    const token = req.query.token || '';
+    res.send(`<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Redefinir Senha — Gestor Orion</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0a0a12;color:#fff;font-family:'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh}
+    .box{background:#12121e;border:1px solid #333;border-radius:12px;padding:40px;width:100%;max-width:380px}
+    h2{font-family:'Orbitron',sans-serif;font-size:16px;color:#1a6fff;margin-bottom:24px;letter-spacing:2px;text-align:center}
+    label{font-size:11px;color:#aaa;letter-spacing:1px;display:block;margin-bottom:6px}
+    input{width:100%;background:#1e1e30;border:1px solid #333;color:#fff;padding:10px 12px;border-radius:6px;font-size:14px;margin-bottom:16px}
+    button{width:100%;background:#1a6fff;color:#fff;border:none;padding:12px;border-radius:6px;font-size:14px;cursor:pointer;font-family:'Orbitron',sans-serif;letter-spacing:1px}
+    button:hover{background:#0055dd}
+    .msg{padding:10px;border-radius:6px;font-size:13px;text-align:center;margin-bottom:14px;display:none}
+    .msg.ok{background:#003300;color:#0f0;border:1px solid #006600}
+    .msg.err{background:#330000;color:#f44;border:1px solid #660000}
+    a{color:#1a6fff;font-size:12px;display:block;text-align:center;margin-top:16px}
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>🔑 REDEFINIR SENHA</h2>
+    <div id="msg" class="msg"></div>
+    <label>NOVA SENHA</label>
+    <input type="password" id="np" placeholder="Nova senha (mínimo 4 caracteres)">
+    <label>CONFIRMAR SENHA</label>
+    <input type="password" id="cp" placeholder="Repita a nova senha">
+    <button onclick="doReset()">SALVAR NOVA SENHA</button>
+    <a href="/login">← Voltar ao Login</a>
+  </div>
+  <script>
+    const TOKEN = '${token}';
+    async function doReset() {
+      const np = document.getElementById('np').value;
+      const cp = document.getElementById('cp').value;
+      const msg = document.getElementById('msg');
+      if (!np || !cp) { showMsg('Preencha os dois campos.', false); return; }
+      if (np !== cp)  { showMsg('As senhas não coincidem.', false); return; }
+      if (np.length < 4) { showMsg('Senha muito curta.', false); return; }
+      const res = await fetch('/auth/reset-by-token', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: TOKEN, newPassword: np })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showMsg('✅ Senha alterada! Redirecionando...', true);
+        setTimeout(() => window.location.href = '/login', 2000);
+      } else {
+        showMsg('❌ ' + (data.error || 'Erro ao redefinir.'), false);
+      }
+    }
+    function showMsg(text, ok) {
+      const el = document.getElementById('msg');
+      el.textContent = text; el.className = 'msg ' + (ok ? 'ok' : 'err');
+      el.style.display = 'block';
+    }
+  </script>
+</body>
+</html>`);
+});
+
+/* TERMOS DE USO */
+app.get('/termos', (req, res) => {
+    res.send(`<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Termos de Uso — Gestor Orion</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0a0a12;color:#ccc;font-family:'Segoe UI',sans-serif;padding:40px 20px;max-width:700px;margin:0 auto;line-height:1.8}
+    h1{color:#1a6fff;font-size:22px;margin-bottom:8px}
+    h2{color:#fff;font-size:15px;margin:24px 0 8px}
+    p{font-size:13px;margin-bottom:10px}
+    a{color:#1a6fff;font-size:13px;display:block;margin-top:32px}
+    .updated{color:#555;font-size:11px;margin-bottom:28px}
+  </style>
+</head>
+<body>
+  <h1>TERMOS DE USO — GESTOR ORION</h1>
+  <p class="updated">Atualizado em: fevereiro de 2026</p>
+  <h2>1. Aceitação</h2>
+  <p>Ao acessar e utilizar o Gestor Orion, você concorda com estes Termos de Uso. Se não concordar, não utilize o sistema.</p>
+  <h2>2. Uso Permitido</h2>
+  <p>O sistema destina-se exclusivamente ao gerenciamento de revendas e clientes de streaming licenciado pelo próprio usuário. O uso para atividades ilegais é estritamente proibido.</p>
+  <h2>3. Responsabilidade do Usuário</h2>
+  <p>O usuário é inteiramente responsável pelo conteúdo gerenciado, credenciais de acesso e pelas ações realizadas dentro do painel. O desenvolvedor não se responsabiliza por qualquer mau uso.</p>
+  <h2>4. Dados e Privacidade</h2>
+  <p>Os dados cadastrados ficam armazenados em banco de dados seguro. Não compartilhamos informações com terceiros.</p>
+  <h2>5. Disponibilidade</h2>
+  <p>O serviço é fornecido "como está", sem garantia de disponibilidade ininterrupta. Manutenções podem ocorrer com ou sem aviso prévio.</p>
+  <h2>6. Alterações</h2>
+  <p>Estes termos podem ser alterados a qualquer momento. O uso continuado do sistema após alterações implica na aceitação dos novos termos.</p>
+  <h2>7. Contato</h2>
+  <p>Para dúvidas ou suporte, entre em contato com o administrador do sistema.</p>
+  <a href="/login">← Voltar ao Login</a>
+</body>
+</html>`);
+});
+
 /* ===== BOOT DO MASTER ADMIN + TENANT PADRÃO ===== */
 async function ensureMasterAdmin() {
     const fs = require('fs');
@@ -221,7 +328,27 @@ sequelize.sync({ alter: true }).then(async () => {
 });
 
 /* TRATAMENTO DE ERROS */
+/* 404 */
+app.use((req, res) => {
+    const isApi = req.path.startsWith('/auth') || req.path.startsWith('/resellers') ||
+                  req.path.startsWith('/clients') || req.path.startsWith('/servers') ||
+                  req.path.startsWith('/report') || req.path.startsWith('/owner') ||
+                  req.path.startsWith('/master') || req.path.startsWith('/tenant');
+    if (isApi) return res.status(404).json({ error: 'Rota não encontrada' });
+    res.status(404).send(`<!DOCTYPE html>
+<html lang="pt-br"><head><meta charset="UTF-8"><title>404 — Gestor Orion</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#0a0a12;color:#fff;font-family:'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center}
+.box{padding:40px}.code{font-size:80px;color:#1a6fff;font-weight:bold;opacity:.3}h1{font-size:20px;margin-bottom:8px}p{color:#aaa;font-size:13px;margin-bottom:24px}a{color:#1a6fff;font-size:13px}</style>
+</head><body><div class="box"><div class="code">404</div><h1>Página não encontrada</h1><p>O endereço que você acessou não existe.</p><a href="/dashboard">← Voltar ao Painel</a></div></body></html>`);
+});
+/* 500 */
 app.use((err, req, res, next) => {
-    console.error(err);
-    res.status(500).json({ error: 'Erro interno do servidor' });
+    console.error('[500]', err?.message || err);
+    const isApi = req.headers['content-type']?.includes('application/json') || req.path.startsWith('/auth') || req.path.startsWith('/resellers');
+    if (isApi || req.xhr) return res.status(500).json({ error: 'Erro interno do servidor' });
+    res.status(500).send(`<!DOCTYPE html>
+<html lang="pt-br"><head><meta charset="UTF-8"><title>500 — Gestor Orion</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#0a0a12;color:#fff;font-family:'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center}
+.box{padding:40px}.code{font-size:80px;color:#ff4444;font-weight:bold;opacity:.3}h1{font-size:20px;margin-bottom:8px}p{color:#aaa;font-size:13px;margin-bottom:24px}a{color:#1a6fff;font-size:13px}</style>
+</head><body><div class="box"><div class="code">500</div><h1>Erro interno</h1><p>Algo deu errado. Tente novamente em instantes.</p><a href="/dashboard">← Voltar ao Painel</a></div></body></html>`);
 });

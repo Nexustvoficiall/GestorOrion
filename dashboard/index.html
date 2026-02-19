@@ -360,7 +360,7 @@
         </div>
         <div class="table-wrap">
         <table>
-            <thead><tr><th>Usu&aacute;rio</th><th>Perfil</th><th>Revenda</th></tr></thead>
+            <thead><tr><th>Usu&aacute;rio</th><th>Perfil</th><th>Revenda</th><th>A&ccedil;&otilde;es</th></tr></thead>
             <tbody id="userList"></tbody>
         </table>
         </div>
@@ -427,6 +427,46 @@
         <div class="btn-row">
             <button onclick="saveEditReseller()">SALVAR ALTERA&Ccedil;&Otilde;ES</button>
             <button class="btn-secondary" onclick="document.getElementById('modalEdit').style.display='none'">CANCELAR</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL ONBOARDING (primeiro acesso) -->
+<div id="modalOnboarding" class="modal-overlay" style="display:none">
+    <div class="modal-box" style="max-width:480px;text-align:center">
+        <div class="modal-header" style="justify-content:center;border-bottom:1px solid #333;padding-bottom:12px;margin-bottom:4px">
+            <h2>&#127881; BEM-VINDO AO GESTOR ORION!</h2>
+        </div>
+        <div style="padding:16px 0">
+            <p style="color:#aaa;font-size:13px;margin-bottom:14px">Voc&ecirc; est&aacute; acessando pela <strong style="color:#fff">primeira vez</strong>.</p>
+            <div style="background:#1a1a2e;border:1px solid #333;border-radius:8px;padding:14px;text-align:left;font-size:13px;margin-bottom:14px">
+                <div style="margin-bottom:8px;color:#fff">&#128203; O que voc&ecirc; pode fazer aqui:</div>
+                <ul style="list-style:none;padding:0;color:#aaa;line-height:2">
+                    <li>&#127978; Cadastrar <strong style="color:#fff">revendedores</strong> e gerenciar seus planos</li>
+                    <li>&#128100; Cadastrar <strong style="color:#fff">clientes</strong> com controle de vencimento</li>
+                    <li>&#128187; Gerenciar <strong style="color:#fff">servidores</strong> dispon&iacute;veis</li>
+                    <li>&#128202; Visualizar <strong style="color:#fff">relat&oacute;rios</strong> financeiros</li>
+                </ul>
+            </div>
+            <p style="color:#ff9800;font-size:12px">&#9888; Recomendado: altere sua senha na aba <strong>Perfil</strong> antes de come&ccedil;ar.</p>
+        </div>
+        <button onclick="closeOnboarding()" style="width:100%">COME&Ccedil;AR A USAR &#8594;</button>
+    </div>
+</div>
+
+<!-- MODAL LINK DE RESET SENHA -->
+<div id="modalResetLink" class="modal-overlay" style="display:none" onclick="if(event.target.id==='modalResetLink')document.getElementById('modalResetLink').style.display='none'">
+    <div class="modal-box" style="max-width:460px">
+        <div class="modal-header">
+            <h3>&#128273; Link de Reset de Senha</h3>
+            <button class="btn-close" onclick="document.getElementById('modalResetLink').style.display='none'">&#10005;</button>
+        </div>
+        <div style="padding:14px 0">
+            <p style="color:#aaa;font-size:13px;margin-bottom:12px">Copie o link abaixo e envie para o usu&aacute;rio (v&aacute;lido por 24h):</p>
+            <div style="display:flex;gap:8px">
+                <input id="resetLinkInput" readonly style="flex:1;background:#1e1e30;border:1px solid #333;color:#fff;padding:8px 10px;border-radius:6px;font-size:12px">
+                <button class="btn-sm" onclick="copyResetLink()" style="white-space:nowrap">&#128203; Copiar</button>
+            </div>
         </div>
     </div>
 </div>

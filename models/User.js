@@ -21,6 +21,18 @@ const User = sequelize.define('User', {
     resellerId: {
         type: DataTypes.INTEGER,
         allowNull: true
+    },
+    firstLogin: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true
+    },
+    resetToken: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    resetTokenExpiry: {
+        type: DataTypes.DATE,
+        allowNull: true
     }
 });
 

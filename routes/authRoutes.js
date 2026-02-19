@@ -2,14 +2,31 @@ const router = require('express').Router();
 const ctrl = require('../controllers/authController');
 const { requireAuth, requireAdmin } = require('../middlewares/authMiddleware');
 const enforceTenant = require('../middlewares/enforceTenant');
+const rateLimit = require('express-rate-limit');
 
-router.post('/login', ctrl.login);
-router.post('/logout', ctrl.logout);
-router.get('/me', ctrl.me);
+/* Rate limit: máx 10 tentativas de login por IP em 15 min */
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    message: { error: 'Muitas tentativas. Aguarde 15 minutos e tente novamente.' },
+    standardHeaders: true,
+    legacyHeaders: false
+});
+
+router.post('/login',           loginLimiter, ctrl.login);
+router.post('/logout',          ctrl.logout);
+router.get('/me',               ctrl.me);
 router.post('/change-password', requireAuth, ctrl.changePassword);
 router.post('/change-username', requireAuth, ctrl.changeUsername);
+router.post('/first-login-done',requireAuth, ctrl.markFirstLoginDone);
 
-/* Apenas admin pode criar usuários revendedores */
+/* Reset de senha por token (público) */
+router.post('/reset-by-token',  ctrl.resetByToken);
+
+/* Admin gera link de reset para um usuário */
+router.post('/users/:userId/reset-token', requireAuth, requireAdmin, enforceTenant, ctrl.generateResetToken);
+
+/* Apenas admin pode criar/listar usuários */
 router.post('/users', requireAuth, requireAdmin, enforceTenant, ctrl.createReseller);
 router.get('/users',  requireAuth, requireAdmin, ctrl.listUsers);
 

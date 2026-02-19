@@ -439,6 +439,7 @@ async function createClient() {
         const res = await fetch('/clients', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
             body: JSON.stringify(payload)
         });
         if (!res.ok) throw new Error();
@@ -454,7 +455,7 @@ async function createClient() {
 /* ===== LISTAR CLIENTES ===== */
 async function loadClients() {
     try {
-        const res = await fetch('/clients');
+        const res = await fetch('/clients', { credentials: 'include' });
         let data = await res.json();
         _clientMap = new Map(data.map(c => [c.id, c]));
         const filter = document.getElementById('filterClientStatus')?.value;
@@ -620,6 +621,7 @@ async function createReseller() {
         const res = await fetch('/resellers', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
             body: JSON.stringify({
                 name,
                 type: document.getElementById('r_type').value,
@@ -641,7 +643,7 @@ async function createReseller() {
 /* ===== LISTAR REVENDAS ===== */
 async function loadResellers() {
     try {
-        const res = await fetch('/resellers');
+        const res = await fetch('/resellers', { credentials: 'include' });
         let data = await res.json();
         const filter = document.getElementById('filterResellerStatus')?.value;
         if (filter) data = data.filter(r => r.status === filter);
@@ -883,7 +885,7 @@ let financeChartInstance = null;
 
 async function loadMetrics() {
     try {
-        const res = await fetch('/report');
+        const res = await fetch('/report', { credentials: 'include' });
         const data = await res.json();
         ['m_clients','f_clients'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = data.totalClients || 0; });
         ['m_resellers','f_resellers'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = data.totalResellers || 0; });
@@ -993,7 +995,7 @@ async function loadExpiringSoon() {
     const limit = new Date(today); limit.setDate(limit.getDate() + 7);
     try {
         /* Clientes */
-        const rc = await fetch('/clients');
+        const rc = await fetch('/clients', { credentials: 'include' });
         const clients = await rc.json();
         const elC = document.getElementById('alertClients');
         const nearC = clients.filter(c => {
@@ -1007,7 +1009,7 @@ async function loadExpiringSoon() {
             return `<div class="alert-item"><span class="alert-name">${c.name}</span><span class="alert-days ${diff<=2?'urgent':''}">&#9200; ${diff===0?'HOJE':diff+'d'}</span></div>`;
         }).join('') : '<span class="empty-alert">Nenhum nos pr\u00f3ximos 7 dias</span>';
         /* Revendas */
-        const rr = await fetch('/resellers');
+        const rr = await fetch('/resellers', { credentials: 'include' });
         const resellers = await rr.json();
         const elR = document.getElementById('alertResellers');
         const nearR = resellers.filter(r => {

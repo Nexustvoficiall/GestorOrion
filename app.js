@@ -11,6 +11,9 @@ const { checkLicensePage } = require('./middlewares/licenseMiddleware');
 
 const app = express();
 
+/* Railway / nginx proxy — necessário para cookies secure e req.ip correto */
+app.set('trust proxy', 1);
+
 /* MIDDLEWARES */
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());

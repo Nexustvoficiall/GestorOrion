@@ -17,7 +17,7 @@
     <div class="login-box">
 
         <div class="logo-area">
-            <img src="/login-assets/assets/logo.png" alt="Gestor Orion" style="max-height:80px;width:auto;margin-bottom:8px;display:block;margin-left:auto;margin-right:auto">
+            <img src="/login-assets/assets/logo.png" alt="Gestor Orion" style="max-height:160px;width:auto;margin-bottom:16px;display:block;margin-left:auto;margin-right:auto;filter:drop-shadow(0 0 18px var(--accent-glow))">
             <p class="subtitle">GESTOR DE STREAMING</p>
         </div>
 
@@ -46,10 +46,10 @@
 
 </div>
 
-<script>    /* Aplicar tema salvo */
+<script>    /* Aplicar tema salvo — padrão azul */
     (function() {
-        const t = localStorage.getItem('nexus_theme');
-        if (t && t !== 'red') document.body.classList.add('theme-' + t);
+        const t = localStorage.getItem('nexus_theme') || 'blue';
+        if (t !== 'red') document.body.classList.add('theme-' + t);
     })();
     /* partículas simples */
     const container = document.getElementById('particles');

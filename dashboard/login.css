@@ -1,6 +1,23 @@
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
 
 :root {
+    --accent: #1a6fff;
+    --accent2: #4499ff;
+    --accent3: #0055cc;
+    --accent-glow: #1a6fff55;
+    --accent-dim: #1a6fff22;
+    --border: #001a40;
+    --border3: #003388;
+    --bg-input: #020810;
+    --bg-box: #030610;
+    --text-muted: #557799;
+    --error-bg: #001a40;
+    --error-border: #003388;
+    --error-color: #4499ff;
+    --hint-color: #112244;
+}
+
+body.theme-red {
     --accent: #ff1a1a;
     --accent2: #ff4444;
     --accent3: #cc0000;

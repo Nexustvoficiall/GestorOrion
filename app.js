@@ -24,11 +24,16 @@ app.use(express.json());
 let sessionStore;
 if (process.env.DATABASE_URL) {
     const pgSession = require('connect-pg-simple')(session);
+    const { Pool } = require('pg');
+    const pgPool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false },
+        max: 5, idleTimeoutMillis: 30000
+    });
     sessionStore = new pgSession({
-        conString:   process.env.DATABASE_URL,
-        tableName:   'session',
-        createTableIfMissing: true,
-        ssl: { rejectUnauthorized: false }
+        pool: pgPool,
+        tableName: 'session',
+        createTableIfMissing: true
     });
     console.log('🗄️  Sessions: PostgreSQL (persistente)');
 } else {

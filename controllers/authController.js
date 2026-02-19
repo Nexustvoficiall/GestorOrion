@@ -29,6 +29,14 @@ exports.login = async (req, res) => {
         const valid = await bcrypt.compare(password, user.password);
         if (!valid) return res.status(401).json({ error: 'Senha inválida' });
 
+        // Bloqueia revendedor com licença de painel expirada
+        if (user.role === 'reseller' && user.panelExpiry && new Date(user.panelExpiry) < new Date()) {
+            return res.status(403).json({
+                error: 'PAINEL_EXPIRADO',
+                message: 'Sua licença de acesso ao painel expirou. Renove com seu administrador.'
+            });
+        }
+
         req.session.user = {
             id:         user.id,
             username:   user.username,
@@ -62,9 +70,12 @@ exports.me = (req, res) => {
     res.json(req.session.user);
 };
 
+// Mapa de planos → dias de acesso
+const PLAN_DAYS = { '30d': 30, '3m': 90, '6m': 180, '1a': 365 };
+
 exports.createReseller = async (req, res) => {
     try {
-        const { username, password, resellerId, role } = req.body;
+        const { username, password, resellerId, role, accessPlan } = req.body;
         if (!username || !password) return res.status(400).json({ error: 'Dados incompletos' });
 
         const tenantId = req.tenantId || req.session?.user?.tenantId;
@@ -77,9 +88,22 @@ exports.createReseller = async (req, res) => {
         // master pode criar qualquer role; admin só pode criar reseller
         const callerRole = req.session?.user?.role;
         const allowedRole = (callerRole === 'master' && role === 'admin') ? 'admin' : 'reseller';
-        const user = await User.create({ username, password: hash, role: allowedRole, resellerId, tenantId });
 
-        res.json({ ok: true, id: user.id, role: allowedRole });
+        // Calcular validade do painel apenas para revendedores
+        let panelExpiry = null;
+        if (allowedRole === 'reseller' && accessPlan && PLAN_DAYS[accessPlan]) {
+            panelExpiry = new Date();
+            panelExpiry.setDate(panelExpiry.getDate() + PLAN_DAYS[accessPlan]);
+        }
+
+        const user = await User.create({
+            username, password: hash, role: allowedRole,
+            resellerId, tenantId,
+            panelPlan: allowedRole === 'reseller' ? 'STANDARD' : null,
+            panelExpiry
+        });
+
+        res.json({ ok: true, id: user.id, role: allowedRole, panelExpiry });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Erro ao criar usuário' });
@@ -144,7 +168,10 @@ exports.changePassword = async (req, res) => {
 exports.listUsers = async (req, res) => {
     const tenantId = req.session?.user?.tenantId;
     const where = tenantId ? { tenantId } : {};
-    const users = await User.findAll({ where, attributes: ['id', 'username', 'role', 'resellerId', 'firstLogin'] });
+    const users = await User.findAll({
+        where,
+        attributes: ['id', 'username', 'role', 'resellerId', 'firstLogin', 'panelPlan', 'panelExpiry']
+    });
     res.json(users);
 };
 

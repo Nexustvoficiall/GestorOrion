@@ -17,7 +17,31 @@ app.set('trust proxy', 1);
 /* MIDDLEWARES */
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
+
+/* ===== SESSION STORE =====
+   No Railway (produção) usa PostgreSQL para persistir sessões mesmo após redeploy.
+   Em dev local usa memória (padrão). */
+let sessionStore;
+if (process.env.DATABASE_URL) {
+    const pgSession = require('connect-pg-simple')(session);
+    sessionStore = new pgSession({
+        conString:   process.env.DATABASE_URL,
+        tableName:   'session',
+        createTableIfMissing: true,
+        ssl: { rejectUnauthorized: false }
+    });
+    console.log('🗄️  Sessions: PostgreSQL (persistente)');
+} else {
+    if (process.env.NODE_ENV === 'production') {
+        console.warn('\n⚠️  AVISO CRÍTICO: DATABASE_URL não definida em produção!\n' +
+            '   Os dados serão perdidos a cada restart.\n' +
+            '   Configure DATABASE_URL no Railway com um banco PostgreSQL.\n');
+    }
+    console.log('🗄️  Sessions: memória (apenas dev local)');
+}
+
 app.use(session({
+    store: sessionStore,
     secret: process.env.SESSION_SECRET || 'orion-saas-secret-2026',
     resave: false,
     saveUninitialized: false,
@@ -308,6 +332,7 @@ async function ensureMasterAdmin() {
 }
 
 /* START SERVER */
+/* alter:true — cria tabelas novas e adiciona colunas sem apagar dados */
 sequelize.sync({ alter: true }).then(async () => {
     console.log('✅ Banco conectado e sincronizado');
     await ensureMasterAdmin();

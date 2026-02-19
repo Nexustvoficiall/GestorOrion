@@ -33,6 +33,14 @@ const User = sequelize.define('User', {
     resetTokenExpiry: {
         type: DataTypes.DATE,
         allowNull: true
+    },
+    panelPlan: {
+        type: DataTypes.STRING,
+        defaultValue: 'STANDARD' // plano de acesso ao painel
+    },
+    panelExpiry: {
+        type: DataTypes.DATE,
+        allowNull: true // null = sem expiração (admin/master)
     }
 });
 

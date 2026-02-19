@@ -388,22 +388,34 @@ async function createUserReseller() {
     const password   = document.getElementById('nu_password').value;
     const role       = document.getElementById('nu_role')?.value || 'reseller';
     const resellerId = document.getElementById('nu_reseller').value;
+    const accessPlan = document.getElementById('nu_accessPlan')?.value || '30d';
     if (!username || !password) { alert('Informe usu\u00e1rio e senha!'); return; }
+    if (role === 'reseller' && !accessPlan) { alert('Selecione o plano de acesso!'); return; }
     try {
         const res = await fetch('/auth/users', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password, role, resellerId: resellerId || null }),
+            body: JSON.stringify({ username, password, role, resellerId: resellerId || null, accessPlan }),
             credentials: 'include'
         });
         const data = await res.json();
         if (!res.ok) { alert('\u274c ' + (data.error || 'Erro')); return; }
-        alert('\u2705 Acesso criado! Usu\u00e1rio: ' + username + ' | Perfil: ' + role.toUpperCase());
+        const planLabel = { '30d': '30 dias', '3m': '3 meses', '6m': '6 meses', '1a': '1 ano' }[accessPlan] || accessPlan;
+        const expMsg = data.panelExpiry ? ' | Expira: ' + new Date(data.panelExpiry).toLocaleDateString('pt-BR') : '';
+        alert('\u2705 Acesso criado!\nUsu\u00e1rio: ' + username + '\nPerfil: ' + role.toUpperCase() + (role === 'reseller' ? '\nPlano: STANDARD ' + planLabel + expMsg : ''));
         document.getElementById('nu_username').value = '';
         document.getElementById('nu_password').value = '';
         document.getElementById('nu_role').value = 'reseller';
+        onNuRoleChange();
         loadUsers();
     } catch (e) { alert('\u274c Erro ao criar acesso.'); }
+}
+
+// Mostra/oculta seletor de plano conforme o perfil selecionado
+function onNuRoleChange() {
+    const role = document.getElementById('nu_role')?.value || 'reseller';
+    const planWrap = document.getElementById('nu_plan_wrap');
+    if (planWrap) planWrap.style.display = (role === 'reseller') ? '' : 'none';
 }
 
 async function loadUsers() {
@@ -413,14 +425,24 @@ async function loadUsers() {
         const users = await res.json();
         const tb = document.getElementById('userList');
         if (!tb) return;
-        tb.innerHTML = users.map(u => `
-            <tr>
+        tb.innerHTML = users.map(u => {
+            const isExpired = u.panelExpiry && new Date(u.panelExpiry) < new Date();
+            const expDate   = u.panelExpiry ? new Date(u.panelExpiry).toLocaleDateString('pt-BR') : '—';
+            const expBadge  = u.role === 'reseller'
+                ? (isExpired
+                    ? '<span class="badge badge-pendente" style="font-size:9px">⚠ EXPIRADO</span>'
+                    : '<span class="badge badge-pago" style="font-size:9px">✓ ATIVO</span>')
+                : '—';
+            const planLabel = u.role === 'reseller' ? (u.panelPlan || 'STANDARD') : '—';
+            return `<tr>
                 <td>${u.username}${u.firstLogin ? ' <span style="font-size:10px;color:#ff9800">●PRIMEIRO ACESSO</span>' : ''}</td>
                 <td><span class="badge ${u.role === 'reseller' ? 'badge-pendente' : 'badge-pago'}">${u.role.toUpperCase()}</span></td>
-                <td>${u.resellerId || '-'}</td>
+                <td>${u.resellerId || '—'}</td>
+                <td>${planLabel}</td>
+                <td>${expDate} ${expBadge}</td>
                 <td><button class="btn-sm" style="font-size:10px" onclick="generateUserResetToken(${u.id}, '${u.username.replace(/'/g,'')}')">&#128273; Reset Senha</button></td>
-            </tr>
-        `).join('');
+            </tr>`;
+        }).join('');
     } catch (e) {}
 }
 

@@ -1,4 +1,4 @@
-const { Tenant } = require('../models');
+const { Tenant, User } = require('../models');
 
 // Cache por tenantId: { [tenantId]: { tenant, checkedAt } }
 const _cache = {};
@@ -49,6 +49,18 @@ async function checkLicense(req, res, next) {
         }
 
         req.tenant = tenant;
+
+        // Verifica validade do painel do revendedor
+        if (req.session?.user?.role === 'reseller' && req.session?.user?.id) {
+            const usr = await User.findByPk(req.session.user.id, { attributes: ['panelExpiry'] });
+            if (usr && usr.panelExpiry && new Date(usr.panelExpiry) < new Date()) {
+                return res.status(403).json({
+                    error: 'PAINEL_EXPIRADO',
+                    message: 'Sua licen\u00e7a de acesso ao painel expirou. Renove com seu administrador.'
+                });
+            }
+        }
+
         next();
     } catch (err) {
         console.error('checkLicense error:', err.message);
@@ -70,7 +82,14 @@ async function checkLicensePage(req, res, next) {
         const expired = !tenant.isActive ||
             (tenant.licenseExpiration && new Date(tenant.licenseExpiration + 'T23:59:59') < new Date());
 
-        if (expired) {
+        // Verifica validade do painel do revendedor
+        let panelExpired = false;
+        if (!expired && req.session?.user?.role === 'reseller' && req.session?.user?.id) {
+            const usr = await User.findByPk(req.session.user.id, { attributes: ['panelExpiry'] });
+            panelExpired = !!(usr && usr.panelExpiry && new Date(usr.panelExpiry) < new Date());
+        }
+
+        if (expired || panelExpired) {
             return res.redirect('/license-expired');
         }
 

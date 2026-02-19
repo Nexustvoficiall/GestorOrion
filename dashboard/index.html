@@ -341,7 +341,7 @@
             <div class="field"><label>Senha</label><input id="nu_password" type="password" placeholder="Senha de acesso"></div>
             <div class="field">
                 <label>Perfil</label>
-                <select id="nu_role">
+                <select id="nu_role" onchange="onNuRoleChange()">
                     <option value="reseller">Revendedor</option>
                     <option value="admin">Administrador</option>
                 </select>
@@ -349,6 +349,15 @@
             <div class="field" id="nu_reseller_wrap">
                 <label>Vincular Revenda</label>
                 <select id="nu_reseller"><option value="">&mdash; Selecione &mdash;</option></select>
+            </div>
+            <div class="field" id="nu_plan_wrap">
+                <label>Plano de Acesso ao Painel</label>
+                <select id="nu_accessPlan">
+                    <option value="30d">30 dias &mdash; Standard</option>
+                    <option value="3m">3 meses &mdash; Standard</option>
+                    <option value="6m" selected>6 meses &mdash; Standard</option>
+                    <option value="1a">1 ano &mdash; Standard</option>
+                </select>
             </div>
             <div class="field btn-field"><button onclick="createUserReseller()">CRIAR ACESSO</button></div>
         </div>
@@ -360,7 +369,7 @@
         </div>
         <div class="table-wrap">
         <table>
-            <thead><tr><th>Usu&aacute;rio</th><th>Perfil</th><th>Revenda</th><th>A&ccedil;&otilde;es</th></tr></thead>
+            <thead><tr><th>Usu&aacute;rio</th><th>Perfil</th><th>Revenda</th><th>Plano</th><th>Expira em</th><th>A&ccedil;&otilde;es</th></tr></thead>
             <tbody id="userList"></tbody>
         </table>
         </div>

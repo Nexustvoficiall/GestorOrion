@@ -37,7 +37,12 @@ exports.login = async (req, res) => {
         };
 
         await audit(req, 'LOGIN', 'User', user.id, { username: user.username });
-        res.json({ ok: true, role: user.role });
+
+        // Garante que a sessão é gravada antes de responder
+        req.session.save(err => {
+            if (err) return res.status(500).json({ error: 'Erro ao salvar sessão' });
+            res.json({ ok: true, role: user.role });
+        });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Erro interno' });

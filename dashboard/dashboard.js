@@ -254,15 +254,19 @@ async function loadAuditLog() {
 
 /* ===== AUTH ===== */
 let _isAdmin = false;
+let _isMaster = false;
 
 async function loadUserInfo() {
     try {
         const res = await fetch('/auth/me', { credentials: 'include' });
         if (!res.ok) { window.location.href = '/login'; return; }
         const user = await res.json();
-        _isAdmin = user.role === 'admin';
+        _isAdmin  = user.role === 'admin' || user.role === 'master';
+        _isMaster = user.role === 'master';
         document.getElementById('topUsername').textContent = user.username;
-        document.getElementById('topRole').textContent = _isAdmin ? 'ADMINISTRADOR' : 'REVENDEDOR';
+        const roleLabel = _isMaster ? 'MASTER' : (_isAdmin ? 'ADMINISTRADOR' : 'REVENDEDOR');
+        document.getElementById('topRole').textContent = roleLabel;
+        if (_isMaster) document.getElementById('topRole').style.color = 'var(--accent2)';
         // Preencher campo de usuário na aba Perfil
         const uInp = document.getElementById('usernameInput');
         if (uInp) uInp.placeholder = user.username;

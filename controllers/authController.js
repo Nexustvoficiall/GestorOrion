@@ -65,7 +65,7 @@ exports.createReseller = async (req, res) => {
         const { username, password, resellerId } = req.body;
         if (!username || !password) return res.status(400).json({ error: 'Dados incompletos' });
 
-        const tenantId = req.session?.user?.tenantId;
+        const tenantId = req.tenantId || req.session?.user?.tenantId;
         if (!tenantId) return res.status(403).json({ error: 'Tenant não identificado' });
 
         const exists = await User.findOne({ where: { username, tenantId } });

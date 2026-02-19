@@ -131,7 +131,7 @@ app.get('/reset-admin', async (req, res) => {
 
 /* ===== ROTAS DA API ===== */
 app.use('/auth',    require('./routes/authRoutes'));
-app.use('/owner',   require('./routes/ownerRoutes'));
+app.use('/owner',   requireAuth, enforceTenant, require('./routes/ownerRoutes'));
 app.use('/tenant',  require('./routes/tenantRoutes'));
 app.use('/master',  require('./routes/masterRoutes'));
 

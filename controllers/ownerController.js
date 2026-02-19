@@ -8,7 +8,8 @@ const { invalidateTenantCache } = require('../middlewares/licenseMiddleware');
 const { audit } = require('../middlewares/authMiddleware');
 
 function getTenantId(req) {
-    return req.session?.user?.tenantId || null;
+    // Preferir req.tenantId (resolvido pelo enforceTenant, inclusive para master)
+    return req.tenantId || req.session?.user?.tenantId || null;
 }
 
 /* GET /owner */

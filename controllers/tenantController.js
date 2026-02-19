@@ -5,7 +5,6 @@
  */
 const { Tenant, User } = require('../models');
 const bcrypt = require('bcryptjs');
-const { v4: uuidv4 } = require('uuid');
 const { invalidateTenantCache } = require('../middlewares/licenseMiddleware');
 const { audit } = require('../middlewares/authMiddleware');
 

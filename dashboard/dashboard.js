@@ -415,15 +415,13 @@ async function createUserReseller() {
     const username   = document.getElementById('nu_username').value.trim();
     const password   = document.getElementById('nu_password').value;
     const role       = document.getElementById('nu_role')?.value || 'reseller';
-    const resellerId = document.getElementById('nu_reseller').value;
     const accessPlan = document.getElementById('nu_accessPlan')?.value || '1m';
     if (!username || !password) { alert('Informe usu\u00e1rio e senha!'); return; }
-    if (role === 'reseller' && !resellerId) { alert('Selecione a revenda para vincular!'); return; }
     try {
         const res = await fetch('/auth/users', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password, role, resellerId: resellerId || null, accessPlan }),
+            body: JSON.stringify({ username, password, role, accessPlan }),
             credentials: 'include'
         });
         const data = await res.json();

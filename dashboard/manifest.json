@@ -1,0 +1,25 @@
+{
+  "name": "Gestor Orion",
+  "short_name": "Orion",
+  "description": "Gestor IPTV SaaS — painel de controle para revendedores",
+  "start_url": "/dashboard/",
+  "scope": "/dashboard/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#e53935",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/dashboard/assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/dashboard/assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

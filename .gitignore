@@ -1,0 +1,39 @@
+# Dependências
+node_modules/
+
+# Banco de dados local (dev)
+database/*.sqlite
+database/*.db
+
+# Uploads de tenants (gerados em runtime)
+uploads/
+
+# Variáveis de ambiente
+.env
+.env.*
+!.env.example
+
+# Logs e arquivos temporários
+*.log
+boot.log
+boot-err.log
+npm-debug.log*
+
+# Credenciais geradas automaticamente
+ACESSO_ADMIN.txt
+ACESSO_MASTER.txt
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editores
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# Build / cache
+dist/
+.cache/

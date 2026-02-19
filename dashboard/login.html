@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Pro — Login</title>
+    <link rel="stylesheet" href="/login-assets/login.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="particles" id="particles"></div>
+
+<div class="login-wrap">
+
+    <div class="login-box">
+
+        <div class="logo-area">
+            <img src="/login-assets/assets/logo.png" alt="Gestor Orion" style="max-height:80px;width:auto;margin-bottom:8px;display:block;margin-left:auto;margin-right:auto">
+            <p class="subtitle">GESTOR DE STREAMING</p>
+        </div>
+
+        <div id="errorMsg" class="error-msg" style="display:none"></div>
+
+        <div class="form-group">
+            <label>USUÁRIO</label>
+            <input type="text" id="username" placeholder="Digite seu usuário" autocomplete="username">
+        </div>
+
+        <div class="form-group">
+            <label>SENHA</label>
+            <div class="pass-wrap">
+                <input type="password" id="password" placeholder="Digite sua senha" autocomplete="current-password">
+                <button type="button" class="eye-btn" onclick="togglePass()">👁</button>
+            </div>
+        </div>
+
+        <button class="btn-login" id="btnLogin" onclick="doLogin()">
+            <span id="btnText">ENTRAR</span>
+        </button>
+
+        <p class="hint">Nexus Pro &copy; 2026</p>
+
+    </div>
+
+</div>
+
+<script>    /* Aplicar tema salvo */
+    (function() {
+        const t = localStorage.getItem('nexus_theme');
+        if (t && t !== 'red') document.body.classList.add('theme-' + t);
+    })();
+    /* partículas simples */
+    const container = document.getElementById('particles');
+    for (let i = 0; i < 40; i++) {
+        const d = document.createElement('div');
+        d.className = 'particle';
+        d.style.left = Math.random() * 100 + 'vw';
+        d.style.animationDelay = (Math.random() * 8) + 's';
+        d.style.animationDuration = (6 + Math.random() * 6) + 's';
+        d.style.opacity = 0.1 + Math.random() * 0.4;
+        container.appendChild(d);
+    }
+
+    function togglePass() {
+        const f = document.getElementById('password');
+        f.type = f.type === 'password' ? 'text' : 'password';
+    }
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Enter') doLogin();
+    });
+
+    async function doLogin() {
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+        const btn      = document.getElementById('btnLogin');
+        const txt      = document.getElementById('btnText');
+        const err      = document.getElementById('errorMsg');
+
+        if (!username || !password) {
+            showError('Preencha usuário e senha.');
+            return;
+        }
+
+        btn.disabled = true;
+        txt.textContent = 'AGUARDE...';
+        err.style.display = 'none';
+
+        try {
+            const res = await fetch('/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password }),
+                credentials: 'include'
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                showError(data.error || 'Credenciais inválidas.');
+            } else {
+                txt.textContent = '✔ ACESSO LIBERADO';
+                btn.style.background = '#006600';
+                setTimeout(() => {
+                    window.location.href = '/dashboard';
+                }, 600);
+            }
+        } catch (e) {
+            showError('Erro de conexão com o servidor.');
+        } finally {
+            if (btn.textContent !== '✔ ACESSO LIBERADO') {
+                btn.disabled = false;
+                txt.textContent = 'ENTRAR';
+            }
+        }
+    }
+
+    function showError(msg) {
+        const el = document.getElementById('errorMsg');
+        el.textContent = msg;
+        el.style.display = 'block';
+    }
+</script>
+
+</body>
+</html>

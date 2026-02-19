@@ -1,0 +1,84 @@
+const { Tenant } = require('../models');
+
+// Cache por tenantId: { [tenantId]: { tenant, checkedAt } }
+const _cache = {};
+const CACHE_TTL = 60 * 1000; // 1 minuto
+
+async function getTenant(tenantId) {
+    const now = Date.now();
+    const cached = _cache[tenantId];
+    if (cached && (now - cached.checkedAt) < CACHE_TTL) return cached.tenant;
+    const tenant = await Tenant.findByPk(tenantId);
+    _cache[tenantId] = { tenant, checkedAt: now };
+    return tenant;
+}
+
+// Invalida o cache de um tenant (chamar após alterar licença)
+function invalidateTenantCache(tenantId) {
+    delete _cache[tenantId];
+}
+
+// Middleware para rotas de API
+async function checkLicense(req, res, next) {
+    try {
+        // Usuário master não tem licença para checar
+        if (req.session?.user?.role === 'master') return next();
+
+        const tenantId = req.session?.user?.tenantId;
+        if (!tenantId) return next(); // instalação nova ou rota pública
+
+        const tenant = await getTenant(tenantId);
+        if (!tenant) return next();
+
+        if (!tenant.isActive) {
+            return res.status(403).json({
+                error: 'LICENCA_INATIVA',
+                message: 'Licença desativada. Entre em contato com o suporte.'
+            });
+        }
+
+        if (tenant.licenseExpiration) {
+            const exp = new Date(tenant.licenseExpiration + 'T23:59:59');
+            if (exp < new Date()) {
+                return res.status(403).json({
+                    error: 'LICENCA_EXPIRADA',
+                    message: 'Licença expirada em ' + new Date(tenant.licenseExpiration).toLocaleDateString('pt-BR'),
+                    expiredAt: tenant.licenseExpiration
+                });
+            }
+        }
+
+        req.tenant = tenant;
+        next();
+    } catch (err) {
+        console.error('checkLicense error:', err.message);
+        next(); // em caso de erro de DB, não bloquear
+    }
+}
+
+// Middleware para rota do dashboard HTML (redireciona para página de expirada)
+async function checkLicensePage(req, res, next) {
+    try {
+        if (req.session?.user?.role === 'master') return next();
+
+        const tenantId = req.session?.user?.tenantId;
+        if (!tenantId) return next();
+
+        const tenant = await getTenant(tenantId);
+        if (!tenant) return next();
+
+        const expired = !tenant.isActive ||
+            (tenant.licenseExpiration && new Date(tenant.licenseExpiration + 'T23:59:59') < new Date());
+
+        if (expired) {
+            return res.redirect('/license-expired');
+        }
+
+        next();
+    } catch (err) {
+        console.error('checkLicensePage error:', err.message);
+        next();
+    }
+}
+
+module.exports = { checkLicense, checkLicensePage, invalidateTenantCache };

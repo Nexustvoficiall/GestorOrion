@@ -274,6 +274,8 @@ async function loadUserInfo() {
             const tab = document.getElementById('tabAdmin');
             if (tab) tab.style.display = '';
         }
+        // Configura seletor de perfil de usuário
+        setupUserRoleSelector();
     } catch (e) {
         window.location.href = '/login';
     }
@@ -351,6 +353,21 @@ async function deleteServer(id, name) {
 }
 
 /* ===== CRIAR USUÁRIO REVENDEDOR ===== */
+function setupUserRoleSelector() {
+    const roleEl = document.getElementById('nu_role');
+    if (!roleEl) return;
+    // Ocultar opção Admin se não for master
+    if (!_isMaster) {
+        const adminOpt = roleEl.querySelector('option[value="admin"]');
+        if (adminOpt) adminOpt.remove();
+    }
+    // Mostrar/ocultar campo de revenda conforme perfil
+    roleEl.addEventListener('change', () => {
+        const wrap = document.getElementById('nu_reseller_wrap');
+        if (wrap) wrap.style.display = roleEl.value === 'reseller' ? '' : 'none';
+    });
+}
+
 async function loadResellerSelect() {
     try {
         const res = await fetch('/resellers', { credentials: 'include' });
@@ -365,20 +382,23 @@ async function loadResellerSelect() {
 async function createUserReseller() {
     const username   = document.getElementById('nu_username').value.trim();
     const password   = document.getElementById('nu_password').value;
+    const role       = document.getElementById('nu_role')?.value || 'reseller';
     const resellerId = document.getElementById('nu_reseller').value;
     if (!username || !password) { alert('Informe usu\u00e1rio e senha!'); return; }
     try {
         const res = await fetch('/auth/users', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password, resellerId: resellerId || null }),
+            body: JSON.stringify({ username, password, role, resellerId: resellerId || null }),
             credentials: 'include'
         });
         const data = await res.json();
         if (!res.ok) { alert('\u274c ' + (data.error || 'Erro')); return; }
-        alert('\u2705 Acesso criado! Usu\u00e1rio: ' + username);
+        alert('\u2705 Acesso criado! Usu\u00e1rio: ' + username + ' | Perfil: ' + role.toUpperCase());
         document.getElementById('nu_username').value = '';
         document.getElementById('nu_password').value = '';
+        document.getElementById('nu_role').value = 'reseller';
+        loadUsers();
     } catch (e) { alert('\u274c Erro ao criar acesso.'); }
 }
 
@@ -392,7 +412,7 @@ async function loadUsers() {
         tb.innerHTML = users.map(u => `
             <tr>
                 <td>${u.username}</td>
-                <td><span class="badge ${u.role === 'admin' ? 'badge-pago' : 'badge-pendente'}">${u.role.toUpperCase()}</span></td>
+                <td><span class="badge ${u.role === 'reseller' ? 'badge-pendente' : 'badge-pago'}">${u.role.toUpperCase()}</span></td>
                 <td>${u.resellerId || '-'}</td>
             </tr>
         `).join('');

@@ -62,7 +62,7 @@ exports.me = (req, res) => {
 
 exports.createReseller = async (req, res) => {
     try {
-        const { username, password, resellerId } = req.body;
+        const { username, password, resellerId, role } = req.body;
         if (!username || !password) return res.status(400).json({ error: 'Dados incompletos' });
 
         const tenantId = req.tenantId || req.session?.user?.tenantId;
@@ -72,9 +72,12 @@ exports.createReseller = async (req, res) => {
         if (exists) return res.status(400).json({ error: 'Usuário já existe' });
 
         const hash = await bcrypt.hash(password, 10);
-        const user = await User.create({ username, password: hash, role: 'reseller', resellerId, tenantId });
+        // master pode criar qualquer role; admin só pode criar reseller
+        const callerRole = req.session?.user?.role;
+        const allowedRole = (callerRole === 'master' && role === 'admin') ? 'admin' : 'reseller';
+        const user = await User.create({ username, password: hash, role: allowedRole, resellerId, tenantId });
 
-        res.json({ ok: true, id: user.id });
+        res.json({ ok: true, id: user.id, role: allowedRole });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Erro ao criar usuário' });

@@ -337,8 +337,9 @@ async function ensureMasterAdmin() {
 }
 
 /* START SERVER */
-/* alter:true — cria tabelas novas e adiciona colunas sem apagar dados */
-sequelize.sync({ alter: true }).then(async () => {
+/* alter:true apenas no PostgreSQL (Railway) — SQLite não suporta ALTER com FK */
+const syncOptions = process.env.DATABASE_URL ? { alter: true } : {};
+sequelize.sync(syncOptions).then(async () => {
     console.log('✅ Banco conectado e sincronizado');
     await ensureMasterAdmin();
     const { startCronJobs } = require('./services/cronService');

@@ -1,0 +1,44 @@
+name: 🚀 Deploy + Provisionar PostgreSQL no Railway
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  provision-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Instalar Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Provisionar PostgreSQL (se ainda não existir)
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          echo "🔍 Verificando variáveis de ambiente..."
+          HAS_DB=$(railway variables --json 2>/dev/null | grep -c '"DATABASE_URL"' || true)
+          if [ "$HAS_DB" = "0" ]; then
+            echo "📦 DATABASE_URL não encontrada — adicionando PostgreSQL..."
+            railway add --plugin postgresql || echo "⚠️  Já existe ou erro ao adicionar (ignorando)"
+            sleep 10
+            echo "✅ PostgreSQL adicionado!"
+          else
+            echo "✅ DATABASE_URL já configurada — nada a fazer."
+          fi
+
+      - name: Configurar variáveis de ambiente obrigatórias
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          railway variables set NODE_ENV=production || true
+          # SESSION_SECRET só define se ainda não existir
+          railway variables --json 2>/dev/null | grep -q '"SESSION_SECRET"' \
+            || railway variables set SESSION_SECRET="OrionSaaS$(openssl rand -hex 16)" || true
+          echo "✅ Variáveis configuradas!"
+
+      - name: ✅ Deploy concluído
+        run: echo "🎉 Railway vai redeployar automaticamente a partir do push no GitHub."

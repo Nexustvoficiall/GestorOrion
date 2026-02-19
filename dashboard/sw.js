@@ -2,7 +2,7 @@
  * sw.js — Service Worker do Gestor Orion
  * Cache básico de assets estáticos para PWA offline-first
  */
-const CACHE_NAME = 'orion-v1';
+const CACHE_NAME = 'orion-v3';
 const STATIC_ASSETS = [
     '/dashboard/',
     '/dashboard/index.html',
@@ -43,7 +43,27 @@ self.addEventListener('fetch', (event) => {
         return; // deixa o browser lidar normalmente
     }
 
-    // Assets estáticos: cache-first
+    // HTML, CSS e JS do painel: sempre network-first (garante atualiza\u00e7\u00f5es imediatas)
+    const isAppAsset = url.pathname.endsWith('.html') ||
+                       url.pathname.endsWith('.css') ||
+                       url.pathname.endsWith('.js') ||
+                       url.pathname === '/dashboard/' ||
+                       url.pathname === '/dashboard';
+
+    if (isAppAsset) {
+        event.respondWith(
+            fetch(request).then((response) => {
+                if (response && response.status === 200) {
+                    const clone = response.clone();
+                    caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+                }
+                return response;
+            }).catch(() => caches.match(request)) // fallback para cache apenas se offline
+        );
+        return;
+    }
+
+    // Demais assets (imagens, fontes): cache-first
     event.respondWith(
         caches.match(request).then((cached) => {
             if (cached) return cached;

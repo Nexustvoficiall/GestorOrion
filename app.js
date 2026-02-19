@@ -101,7 +101,15 @@ app.get('/license-expired', (req, res) => {
 app.use('/dashboard', (req, res, next) => {
     if (!req.session.user) return res.redirect('/login');
     next();
-}, checkLicensePage, express.static(path.join(__dirname, 'dashboard')));
+}, checkLicensePage, (req, res, next) => {
+    // Nunca cachear o HTML principal — garante que atualizações chegam imediatamente
+    if (req.path === '/' || req.path === '/index.html' || req.path === '') {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+    }
+    next();
+}, express.static(path.join(__dirname, 'dashboard')));
 
 /* ROTA RAIZ */
 app.get('/', (req, res) => res.redirect('/login'));

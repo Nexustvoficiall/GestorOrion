@@ -547,12 +547,27 @@
 
 <script src="dashboard.js?v=3"></script>
 <script>
-    // Registrar Service Worker para PWA
+    // Limpa SWs antigos e registra o novo
     if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/dashboard/sw.js')
-                .then(reg => console.log('SW registrado:', reg.scope))
-                .catch(err => console.warn('SW falhou:', err));
+        // Desregistra qualquer SW antigo (cache-first) antes de registrar o novo
+        navigator.serviceWorker.getRegistrations().then(regs => {
+            const stale = regs.filter(r => !r.active || r.active.scriptURL.includes('sw.js'));
+            Promise.all(stale.map(r => r.unregister())).then(() => {
+                navigator.serviceWorker.register('/dashboard/sw.js?v=3')
+                    .then(reg => {
+                        // Foraça ativação imediata do novo SW
+                        if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                        reg.addEventListener('updatefound', () => {
+                            const newWorker = reg.installing;
+                            if (newWorker) {
+                                newWorker.addEventListener('statechange', () => {
+                                    if (newWorker.state === 'activated') window.location.reload();
+                                });
+                            }
+                        });
+                    })
+                    .catch(err => console.warn('SW falhou:', err));
+            });
         });
     }
 </script>

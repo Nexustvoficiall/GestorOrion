@@ -23,6 +23,19 @@ const Reseller = sequelize.define('Reseller', {
     status: {
         type: DataTypes.STRING,
         defaultValue: 'ATIVO'
+    },
+    // Plano mensal do Gestor Orion
+    planActive: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    },
+    planExpiresAt: {
+        type: DataTypes.DATEONLY,
+        allowNull: true
+    },
+    planValue: {
+        type: DataTypes.DECIMAL(10, 2),
+        defaultValue: 20.00
     }
 });
 

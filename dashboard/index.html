@@ -176,7 +176,7 @@
         <table>
             <thead><tr>
                 <th>Nome</th><th>Tipo</th><th>WhatsApp</th><th>Servidores</th><th>Ativos</th><th>Receita</th>
-                <th>Custo</th><th>Acerto (por servidor)</th><th>Pagamento</th><th>Status</th><th>A&ccedil;&otilde;es</th>
+                <th>Custo</th><th>Acerto (por servidor)</th><th>Pagamento</th><th>Status</th><th>Plano Gestor</th><th>A&ccedil;&otilde;es</th>
             </tr></thead>
             <tbody id="resellerList"></tbody>
         </table>
@@ -427,6 +427,38 @@
         <div class="btn-row">
             <button onclick="saveEditReseller()">SALVAR ALTERA&Ccedil;&Otilde;ES</button>
             <button class="btn-secondary" onclick="document.getElementById('modalEdit').style.display='none'">CANCELAR</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL PLANO GESTOR (REVENDA) -->
+<div id="modalPlan" class="modal-overlay" style="display:none" onclick="if(event.target.id==='modalPlan')closePlanModal()">
+    <div class="modal-box" style="max-width:380px">
+        <div class="modal-header">
+            <h3 id="modalPlanTitle">Plano Gestor — Revenda</h3>
+            <button class="btn-close" onclick="closePlanModal()">&#10005;</button>
+        </div>
+        <div style="padding:16px 0">
+            <p style="color:#aaa;font-size:13px;margin-bottom:12px">Revenda: <strong id="planResellerName" style="color:#fff"></strong></p>
+            <div id="planCurrentStatus" style="margin-bottom:16px;font-size:13px"></div>
+            <div class="field">
+                <label>Meses a adicionar</label>
+                <select id="planMonths">
+                    <option value="1">1 m&ecirc;s — R$ 20,00</option>
+                    <option value="2">2 meses — R$ 40,00</option>
+                    <option value="3">3 meses — R$ 60,00</option>
+                    <option value="6">6 meses — R$ 120,00</option>
+                    <option value="12">12 meses — R$ 240,00</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Valor por m&ecirc;s (R$)</label>
+                <input type="number" id="planValueInput" value="20" min="0" step="0.01">
+            </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:8px">
+            <button onclick="confirmSetPlan('activate')" style="flex:1">&#10003; ATIVAR / RENOVAR</button>
+            <button onclick="confirmSetPlan('cancel')" class="btn-secondary" style="flex:1;background:#c0392b">&#10006; CANCELAR PLANO</button>
         </div>
     </div>
 </div>

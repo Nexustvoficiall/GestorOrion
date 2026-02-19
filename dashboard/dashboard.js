@@ -648,7 +648,7 @@ async function loadResellers() {
         const table = document.getElementById('resellerList');
         table.innerHTML = '';
         if (!data.length) {
-            table.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#555">Nenhuma revenda cadastrada</td></tr>';
+            table.innerHTML = '<tr><td colspan="12" style="text-align:center;color:#555">Nenhuma revenda cadastrada</td></tr>';
             return;
         }
         const today = new Date(); today.setHours(0,0,0,0);
@@ -674,6 +674,22 @@ async function loadResellers() {
             const pago       = r.paymentStatus === 'PAGO';
             const isAtivo    = r.status !== 'INATIVO';
             const safeName   = r.name.replace(/'/g, '');
+            // Plano gestor
+            const today2 = new Date(); today2.setHours(0,0,0,0);
+            let planHtml = '';
+            if (r.planActive && r.planExpiresAt) {
+                const exp = new Date(r.planExpiresAt + 'T00:00:00');
+                const diff = Math.ceil((exp - today2) / 86400000);
+                const expStr = exp.toLocaleDateString('pt-BR');
+                const cor = diff <= 5 ? '#ff9800' : '#00cc66';
+                planHtml = `<span class="badge" style="background:${cor};color:#000;font-size:10px">ATIVO</span><br><span style="font-size:10px;color:#aaa">${expStr}${diff <= 5 ? ' ⚠' : ''}</span><br>`;
+            } else if (r.planExpiresAt && !r.planActive) {
+                planHtml = `<span class="badge badge-pendente" style="font-size:10px">EXPIRADO</span><br>`;
+            } else {
+                planHtml = `<span class="badge" style="background:#555;color:#ccc;font-size:10px">INATIVO</span><br>`;
+            }
+            const planBtnLabel = r.planActive ? 'Renovar' : 'Ativar';
+            planHtml += `<button class="btn-sm" style="margin-top:3px;font-size:10px" onclick="openPlanModal(${r.id}, '${safeName}', ${!!r.planActive}, '${r.planExpiresAt || ''}')">${planBtnLabel}</button>`;
             table.innerHTML += `
             <tr class="${rowClass}${isAtivo ? '' : ' row-inativo'}">
                 <td>${r.name}</td>
@@ -686,6 +702,7 @@ async function loadResellers() {
                 <td style="font-size:12px;line-height:1.6">${settleDisplay}</td>
                 <td><button class="badge ${pago ? 'badge-pago' : 'badge-pendente'}" onclick="togglePayment(${r.id}, '${r.paymentStatus}', this)">${r.paymentStatus}</button></td>
                 <td><span class="badge ${isAtivo ? 'badge-pago' : 'badge-pendente'}">${r.status || 'ATIVO'}</span></td>
+                <td style="text-align:center">${planHtml}</td>
                 <td class="td-actions">
                     <button class="btn-action btn-edit" onclick="openEditModal(${r.id})" title="Editar">&#9998;</button>
                     <button class="btn-action ${isAtivo ? 'btn-danger' : 'btn-success'}" onclick="toggleResellerStatus(${r.id}, this)" title="${isAtivo ? 'Desativar' : 'Ativar'}">${isAtivo ? '&#10006;' : '&#10003;'}</button>
@@ -718,6 +735,58 @@ async function togglePayment(id, current, btn) {
         loadResellers();
         loadExpiringSoon();
     } catch (e) { alert('\u274c Erro ao atualizar pagamento.'); }
+}
+
+/* ===== PLANO GESTOR (REVENDA) ===== */
+let _planResellerId = null;
+
+function openPlanModal(id, name, isActive, expiresAt) {
+    _planResellerId = id;
+    document.getElementById('planResellerName').textContent = name;
+    const statusEl = document.getElementById('planCurrentStatus');
+    if (isActive && expiresAt) {
+        const exp = new Date(expiresAt + 'T00:00:00');
+        const diff = Math.ceil((exp - new Date()) / 86400000);
+        const cor = diff <= 5 ? '#ff9800' : '#00cc66';
+        statusEl.innerHTML = `Status: <strong style="color:${cor}">ATIVO</strong> &nbsp; Vence: <strong>${exp.toLocaleDateString('pt-BR')}</strong>${diff <= 5 ? ' <span style="color:#ff9800">⚠ ' + diff + ' dia(s)</span>' : ''}`;
+    } else if (!isActive && expiresAt) {
+        const exp = new Date(expiresAt + 'T00:00:00');
+        statusEl.innerHTML = `Status: <strong style="color:#f44">EXPIRADO</strong> &nbsp; Venceu: <strong>${exp.toLocaleDateString('pt-BR')}</strong>`;
+    } else {
+        statusEl.innerHTML = `Status: <strong style="color:#888">SEM PLANO</strong>`;
+    }
+    document.getElementById('planMonths').value = '1';
+    document.getElementById('planValueInput').value = '20';
+    document.getElementById('modalPlan').style.display = 'flex';
+}
+
+function closePlanModal() {
+    document.getElementById('modalPlan').style.display = 'none';
+    _planResellerId = null;
+}
+
+async function confirmSetPlan(action) {
+    if (!_planResellerId) return;
+    const months = document.getElementById('planMonths').value;
+    const planValue = document.getElementById('planValueInput').value;
+    try {
+        const res = await fetch('/resellers/' + _planResellerId + '/plan', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action, months: Number(months), planValue: Number(planValue) }),
+            credentials: 'include'
+        });
+        const data = await res.json();
+        if (!res.ok) { alert('\u274c ' + (data.error || 'Erro')); return; }
+        if (action === 'cancel') {
+            showFlash('\u2705 Plano cancelado!');
+        } else {
+            const exp = new Date(data.planExpiresAt + 'T00:00:00');
+            showFlash('\u2705 Plano ativado! Vence em ' + exp.toLocaleDateString('pt-BR'));
+        }
+        closePlanModal();
+        loadResellers();
+    } catch (e) { alert('\u274c Erro ao atualizar plano.'); }
 }
 
 /* ===== EDITAR REVENDA ===== */

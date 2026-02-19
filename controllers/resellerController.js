@@ -96,6 +96,42 @@ exports.updatePayment = async (req, res) => {
     }
 };
 
+/* GERENCIAR PLANO MENSAL */
+exports.setPlan = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { action, months, planValue } = req.body; // action: 'activate' | 'renew' | 'cancel'
+        const tenantId = req.tenantId;
+
+        const reseller = await Reseller.findOne({ where: { id, tenantId } });
+        if (!reseller) return res.status(404).json({ error: 'Revenda não encontrada' });
+
+        if (action === 'cancel') {
+            await reseller.update({ planActive: false, planExpiresAt: null });
+            return res.json({ success: true, message: 'Plano cancelado' });
+        }
+
+        const qty = Number(months) || 1;
+        const value = planValue !== undefined ? Number(planValue) : 20.00;
+
+        // Calcula nova data: se já tem expiração futura, soma a partir dela; senão de hoje
+        let base = reseller.planExpiresAt && reseller.planActive
+            ? new Date(reseller.planExpiresAt + 'T00:00:00')
+            : new Date();
+        if (base < new Date()) base = new Date(); // se já expirou, renova a partir de hoje
+        base.setDate(base.getDate() + (qty * 30));
+        const newExpiry = base.toISOString().slice(0, 10);
+
+        await reseller.update({ planActive: true, planExpiresAt: newExpiry, planValue: value });
+        await audit(req, 'PLAN_RENEWED', 'Reseller', reseller.id, { months: qty, expiresAt: newExpiry, value });
+
+        res.json({ success: true, planExpiresAt: newExpiry, planActive: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Erro ao atualizar plano' });
+    }
+};
+
 /* EXCLUIR REVENDEDOR */
 exports.remove = async (req, res) => {
     try {

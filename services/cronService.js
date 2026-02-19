@@ -111,6 +111,40 @@ function startCronJobs() {
             console.error('[CRON] Erro ao resetar pagamentos:', err.message);
         }
     });
+
+    /* ==============================================================
+       JOB 4: Todo dia às 02:00 — expirar planos mensais de revenda
+       ============================================================== */
+    cron.schedule('0 2 * * *', async () => {
+        console.log('[CRON] Verificando planos mensais de revenda...');
+        try {
+            const today = new Date().toISOString().slice(0, 10);
+            const expired = await Reseller.findAll({
+                where: {
+                    planActive: true,
+                    planExpiresAt: { [Op.lt]: today }
+                }
+            });
+            let count = 0;
+            for (const r of expired) {
+                await r.update({ planActive: false });
+                count++;
+            }
+            if (count > 0) {
+                console.log(`[CRON] ${count} planos de revenda expirados.`);
+                await AuditLog.create({
+                    tenantId: null,
+                    userId: null,
+                    userUsername: 'sistema',
+                    action: 'AUTO_EXPIRE_RESELLER_PLANS',
+                    entity: 'Reseller',
+                    details: JSON.stringify({ count, date: today })
+                });
+            }
+        } catch (err) {
+            console.error('[CRON] Erro ao expirar planos de revenda:', err.message);
+        }
+    });
 }
 
 module.exports = { startCronJobs };

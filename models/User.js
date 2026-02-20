@@ -67,6 +67,11 @@ const User = sequelize.define('User', {
     extraExpensesJSON: {
         type: DataTypes.TEXT,
         allowNull: true
+    },
+    // Preços dos planos de renovação (somente master usa este campo)
+    planPricesJSON: {
+        type: DataTypes.TEXT,
+        allowNull: true
     }
 });
 

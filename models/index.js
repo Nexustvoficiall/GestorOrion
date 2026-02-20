@@ -7,6 +7,7 @@ const Reseller       = require('./Reseller');
 const ResellerServer = require('./ResellerServer');
 const Server         = require('./Server');
 const AuditLog       = require('./AuditLog');
+const RenewalRequest = require('./RenewalRequest');
 
 /* RELACIONAMENTOS */
 Reseller.hasMany(ResellerServer, { foreignKey: 'resellerId', as: 'servers' });
@@ -26,5 +27,6 @@ module.exports = {
     Reseller,
     ResellerServer,
     Server,
-    AuditLog
+    AuditLog,
+    RenewalRequest
 };

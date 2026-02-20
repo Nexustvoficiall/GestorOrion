@@ -37,5 +37,6 @@ router.get('/admins', requireAuth, ctrl.listAdmins);
 /* Preferências pessoais — tema de cor e logo (qualquer usuário autenticado) */
 router.get('/preferences',  requireAuth, ctrl.getPreferences);
 router.put('/preferences',  requireAuth, ctrl.savePreferences);
+router.post('/preferences', requireAuth, ctrl.savePreferences);  // compatibilidade
 
 module.exports = router;

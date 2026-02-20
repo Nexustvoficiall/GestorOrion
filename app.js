@@ -179,6 +179,7 @@ app.use('/resellers',       requireAuth, enforceTenant, require('./routes/resell
 app.use('/report',          requireAuth, enforceTenant, require('./routes/reportRoutes'));
 app.use('/servers',         requireAuth, enforceTenant, require('./routes/serverRoutes'));
 app.use('/resellerservers', requireAuth, enforceTenant, require('./routes/resellerServerRoutes'));
+app.use('/renewal',         requireAuth, require('./routes/renewalRoutes'));
 
 /* PÁGINA REDEFINIR SENHA (pública, token via query) */
 app.get('/reset-password', (req, res) => {
@@ -363,6 +364,7 @@ sequelize.sync().then(async () => {
             await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "monthlyExpenses" FLOAT DEFAULT 0;`);
             await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "expensesJSON" TEXT;`);
             await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "extraExpensesJSON" TEXT;`);
+            await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "planPricesJSON" TEXT;`);
         } catch (_) { /* coluna já existe — ignorar */ }
     } else {
         // SQLite: sintaxe sem IF NOT EXISTS
@@ -374,6 +376,7 @@ sequelize.sync().then(async () => {
         try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "monthlyExpenses" FLOAT DEFAULT 0`); } catch (_) {}
         try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "expensesJSON" TEXT`); } catch (_) {}
         try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "extraExpensesJSON" TEXT`); } catch (_) {}
+        try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "planPricesJSON" TEXT`); } catch (_) {}
     }
     // Migra role 'reseller' → 'personal' (renomeio de perfil) — roda em PG e SQLite
     try { await sequelize.query(`UPDATE "Users" SET "role" = 'personal' WHERE "role" = 'reseller'`); } catch (_) {}

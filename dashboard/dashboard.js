@@ -217,7 +217,8 @@ function switchTab(name) {
     if (btn) btn.classList.add('active');
     if (name === 'financeiro') loadMetrics();
     if (name === 'extras') loadExtras();
-    if (name === 'admin') { loadResellerSelect(); loadUsers(); loadLicenseInfo(); updatePlanPreview('6m'); }
+    if (name === 'perfil') loadMyRenewal();
+    if (name === 'admin') { loadResellerSelect(); loadUsers(); loadLicenseInfo(); updatePlanPreview('6m'); loadRenewalRequests(); loadPlanPrices(); }
     if (name === 'servidores') loadServers();
     if (name === 'users') loadAdminUsers();
     if (name === 'mensalistas') loadMensalistas();
@@ -387,6 +388,8 @@ async function loadUserInfo() {
         if (_isMaster) {
             const tabU = document.getElementById('tabUsers');
             if (tabU) tabU.style.display = '';
+            const pp = document.getElementById('planPricesPanel');
+            if (pp) pp.style.display = '';
         }
         // Personal: painel completo com dados isolados — não esconder nenhum card
         // (backend já filtra pelos dados exclusivos do usuário)
@@ -1785,6 +1788,182 @@ function exportClientesCSV() {
     showFlash(`✅ ${_clientMap.size} cliente(s) exportados!`);
 }
 
+/* ===== RENOVAÇÃO DO PAINEL ===== */
+const PLAN_LABELS_RNV = { '1m': '1 Mês', '3m': '3 Meses', '6m': '6 Meses', '1a': '1 Ano' };
+
+function selectRenewalPlan(el, plan) {
+    document.querySelectorAll('[data-rplan]').forEach(c => c.classList.remove('plan-card-selected'));
+    el.classList.add('plan-card-selected');
+    const inp = document.getElementById('rnv_plan');
+    if (inp) inp.value = plan;
+}
+
+async function loadMyRenewal() {
+    try {
+        // Carrega preços
+        const prRes = await fetch('/renewal/prices', { credentials: 'include' });
+        if (prRes.ok) {
+            const prices = await prRes.json();
+            ['1m','3m','6m','1a'].forEach(k => {
+                const el = document.getElementById('rnv_price_' + k);
+                if (el) el.textContent = 'R$ ' + (prices[k] || '--');
+            });
+        }
+        // Carrega status e histórico
+        const res = await fetch('/renewal/my', { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+
+        // Status atual
+        const statusEl = document.getElementById('renewalCurrentStatus');
+        if (statusEl) {
+            const exp = data.panelExpiry ? new Date(data.panelExpiry) : null;
+            const expFmt = exp ? exp.toLocaleDateString('pt-BR') : 'Sem vencimento';
+            const today = new Date();
+            const daysLeft = exp ? Math.ceil((exp - today) / 86400000) : null;
+            const statusColor = !exp ? '#00cc66' : daysLeft <= 0 ? '#ff4444' : daysLeft <= 7 ? '#ffaa00' : '#00cc66';
+            statusEl.innerHTML = `
+                <span>&#128100; <strong>PLANO:</strong> ${data.panelPlan || 'STANDARD'}</span> &nbsp;&nbsp;
+                <span>&#128197; <strong>VENCIMENTO:</strong> <strong style="color:${statusColor}">${expFmt}</strong></span>
+                ${daysLeft !== null ? `&nbsp;&nbsp;<span style="color:${statusColor}">(${daysLeft > 0 ? daysLeft + ' dias restantes' : 'EXPIRADO'})</span>` : ''}
+            `;
+        }
+
+        // Controla se mostra form ou aviso de pendente
+        const pending = data.requests.find(r => r.status === 'pending');
+        const pendingMsg = document.getElementById('renewalPendingMsg');
+        const reqForm    = document.getElementById('renewalRequestForm');
+        if (pending) {
+            if (pendingMsg) pendingMsg.style.display = '';
+            if (reqForm)    reqForm.style.display    = 'none';
+        } else {
+            if (pendingMsg) pendingMsg.style.display = 'none';
+            if (reqForm)    reqForm.style.display    = '';
+        }
+
+        // Histórico
+        const hist = document.getElementById('renewalHistory');
+        if (hist) {
+            if (!data.requests.length) {
+                hist.innerHTML = '<span style="color:#555;font-size:12px">Nenhuma solicitação encontrada.</span>';
+            } else {
+                const statusColors = { pending: '#ffaa00', approved: '#00cc66', rejected: '#ff4444' };
+                const statusLabels = { pending: '⏳ Aguardando', approved: '✅ Aprovado', rejected: '❌ Rejeitado' };
+                hist.innerHTML = data.requests.map(r => {
+                    const dt = new Date(r.createdAt).toLocaleDateString('pt-BR');
+                    const color = statusColors[r.status] || '#888';
+                    return `<div class="cost-item">
+                        <span>${PLAN_LABELS_RNV[r.plan] || r.plan} &nbsp;<span style="font-size:10px;color:#666">${dt}</span></span>
+                        <span style="display:flex;gap:12px;align-items:center">
+                            <span style="color:#aaa;font-size:11px">R$ ${r.price || '--'}</span>
+                            <span style="color:${color};font-size:11px;font-weight:600">${statusLabels[r.status] || r.status}</span>
+                        </span>
+                    </div>`;
+                }).join('');
+            }
+        }
+    } catch (e) { console.error('Erro ao carregar renovação', e); }
+}
+
+async function submitRenewal() {
+    const plan    = document.getElementById('rnv_plan')?.value || '6m';
+    const message = document.getElementById('rnv_message')?.value.trim() || '';
+    try {
+        const res = await fetch('/renewal', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ plan, message })
+        });
+        const data = await res.json();
+        if (!res.ok) { showToast(data.error || 'Erro ao solicitar', '#ff4444'); return; }
+        showToast(`✅ Solicitação enviada! Plano: ${PLAN_LABELS_RNV[plan]} — R$ ${data.price}`, '#00cc66');
+        loadMyRenewal();
+    } catch (e) { showToast('Erro de conexão', '#ff4444'); }
+}
+
+async function loadPlanPrices() {
+    try {
+        const res = await fetch('/renewal/prices', { credentials: 'include' });
+        if (!res.ok) return;
+        const prices = await res.json();
+        ['1m','3m','6m','1a'].forEach(k => {
+            const el = document.getElementById('pp_' + k);
+            if (el) el.value = prices[k] || '';
+        });
+    } catch (e) {}
+}
+
+async function savePlanPrices() {
+    const prices = {};
+    ['1m','3m','6m','1a'].forEach(k => {
+        prices[k] = Number(document.getElementById('pp_' + k)?.value) || 0;
+    });
+    try {
+        const res = await fetch('/renewal/prices', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(prices)
+        });
+        if (res.ok) showToast('✅ Preços salvos!', '#00cc66');
+        else showToast('Erro ao salvar preços', '#ff4444');
+    } catch (e) { showToast('Erro de conexão', '#ff4444'); }
+}
+
+async function loadRenewalRequests() {
+    const tb = document.getElementById('renewalList');
+    if (!tb) return;
+    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#555">Carregando...</td></tr>';
+    try {
+        const res = await fetch('/renewal/all', { credentials: 'include' });
+        if (!res.ok) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#f44">Sem permissão</td></tr>'; return; }
+        const rows = await res.json();
+        if (!rows.length) {
+            tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#555">Nenhuma solicitação pendente 🎉</td></tr>';
+            return;
+        }
+        tb.innerHTML = rows.map(r => {
+            const dt = new Date(r.createdAt).toLocaleDateString('pt-BR');
+            const curExp = r.currentExpiry ? new Date(r.currentExpiry).toLocaleDateString('pt-BR') : '—';
+            const msg = r.message ? `<span title="${r.message.replace(/"/g,'&quot;')}" style="cursor:help;color:#aaa">💬</span>` : '—';
+            return `<tr>
+                <td><strong>${r.username}</strong></td>
+                <td>${PLAN_LABELS_RNV[r.plan] || r.plan}</td>
+                <td style="color:var(--accent)">R$ ${r.price || '--'}</td>
+                <td>${msg}</td>
+                <td style="font-size:11px">${curExp}</td>
+                <td style="font-size:11px;color:#666">${dt}</td>
+                <td class="td-actions">
+                    <button class="btn-action btn-success" onclick="approveRenewal(${r.id},'${r.username.replace(/'/g,'')}','${r.planLabel}')" title="Aprovar">✓ Aprovar</button>
+                    <button class="btn-action btn-danger"  onclick="rejectRenewal(${r.id},'${r.username.replace(/'/g,'')}')" title="Rejeitar">✕</button>
+                </td>
+            </tr>`;
+        }).join('');
+    } catch (e) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#f44">Erro ao carregar</td></tr>'; }
+}
+
+async function approveRenewal(id, username, planLabel) {
+    if (!confirm(`Aprovar renovação de "${username}" — ${planLabel}?`)) return;
+    try {
+        const res  = await fetch(`/renewal/${id}/approve`, { method: 'POST', credentials: 'include' });
+        const data = await res.json();
+        if (!res.ok) { showToast(data.error || 'Erro ao aprovar', '#ff4444'); return; }
+        const newExpFmt = data.newExpiry ? new Date(data.newExpiry + 'T00:00:00').toLocaleDateString('pt-BR') : '—';
+        showToast(`✅ ${data.username} renovado por ${data.planLabel}. Novo vencimento: ${newExpFmt}`, '#00cc66');
+        loadRenewalRequests();
+    } catch (e) { showToast('Erro de conexão', '#ff4444'); }
+}
+
+async function rejectRenewal(id, username) {
+    if (!confirm(`Rejeitar solicitação de "${username}"?`)) return;
+    try {
+        const res = await fetch(`/renewal/${id}/reject`, { method: 'POST', credentials: 'include' });
+        if (res.ok) { showToast(`Solicitação de ${username} rejeitada.`, '#ffaa00'); loadRenewalRequests(); }
+        else showToast('Erro ao rejeitar', '#ff4444');
+    } catch (e) { showToast('Erro de conexão', '#ff4444'); }
+}
+
 /* ===== INIT ===== */
 window.onload = async () => {
     loadTheme();
@@ -1800,6 +1979,7 @@ window.onload = async () => {
     loadResellers();
     loadMensalistas();
     onMensalistaTypeChange();
+    loadMyRenewal(); // carrega status de renovação na aba perfil
 };
 
 

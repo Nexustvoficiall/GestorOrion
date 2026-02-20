@@ -1697,6 +1697,89 @@ function selectRenewalPlan(el, plan) {
 
 async function loadMyRenewal() {
     try {
+        const isAdminOnly = _isAdmin && !_isMaster;
+        const reqForm  = document.getElementById('renewalRequestForm');
+        const adminSec = document.getElementById('adminBillingSection');
+
+        // ---- ADMIN (não master): fatura por cliente ativo ----
+        if (isAdminOnly) {
+            if (reqForm)  reqForm.style.display  = 'none';
+            if (adminSec) adminSec.style.display = '';
+
+            // Carrega estimativa de fatura
+            const bilRes = await fetch('/renewal/billing', { credentials: 'include' });
+            if (bilRes.ok) {
+                const b = await bilRes.json();
+                const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+                setTxt('bil_activeClients', b.activeClients);
+                setTxt('bil_monthly', 'R$ ' + Number(b.monthlyEstimate || 0).toFixed(2).replace('.', ','));
+                setTxt('bil_total',   'R$ ' + Number(b.totalEstimate   || 0).toFixed(2).replace('.', ','));
+                const adesaoRow   = document.getElementById('bil_adesao_row');
+                const adesaoBadge = document.getElementById('bil_adesao_badge');
+                if (adesaoRow)   adesaoRow.style.display   = b.adesaoPaga ? 'none' : '';
+                if (adesaoBadge) adesaoBadge.style.display = b.adesaoPaga ? '' : 'none';
+            }
+
+            // Carrega status e histórico
+            const res = await fetch('/renewal/my', { credentials: 'include' });
+            if (!res.ok) return;
+            const data = await res.json();
+
+            // Status atual
+            const statusEl = document.getElementById('renewalCurrentStatus');
+            if (statusEl) {
+                const exp = data.panelExpiry ? new Date(data.panelExpiry) : null;
+                const expFmt = exp ? exp.toLocaleDateString('pt-BR') : 'Sem vencimento';
+                const today = new Date();
+                const daysLeft = exp ? Math.ceil((exp - today) / 86400000) : null;
+                const statusColor = !exp ? '#00cc66' : daysLeft <= 0 ? '#ff4444' : daysLeft <= 7 ? '#ffaa00' : '#00cc66';
+                statusEl.innerHTML = `
+                    <span>&#128100; <strong>PLANO:</strong> ADMIN POR CLIENTE</span> &nbsp;&nbsp;
+                    <span>&#128197; <strong>VENCIMENTO:</strong> <strong style="color:${statusColor}">${expFmt}</strong></span>
+                    ${daysLeft !== null ? `&nbsp;&nbsp;<span style="color:${statusColor}">(${daysLeft > 0 ? daysLeft + ' dias restantes' : 'EXPIRADO'})</span>` : ''}
+                `;
+            }
+
+            // Controla botão de solicitação pendente
+            const pending = data.requests.find(r => r.status === 'pending');
+            const pendingMsg = document.getElementById('renewalPendingMsg');
+            const submitBtn  = adminSec ? adminSec.querySelector('button') : null;
+            if (pending) {
+                if (pendingMsg) pendingMsg.style.display = '';
+                if (submitBtn)  submitBtn.disabled = true;
+            } else {
+                if (pendingMsg) pendingMsg.style.display = 'none';
+                if (submitBtn)  submitBtn.disabled = false;
+            }
+
+            // Histórico
+            const hist = document.getElementById('renewalHistory');
+            if (hist) {
+                if (!data.requests.length) {
+                    hist.innerHTML = '<span style="color:#555;font-size:12px">Nenhuma solicitação encontrada.</span>';
+                } else {
+                    const statusColors = { pending: '#ffaa00', approved: '#00cc66', rejected: '#ff4444' };
+                    const statusLabels = { pending: '⏳ Aguardando', approved: '✅ Aprovado', rejected: '❌ Rejeitado' };
+                    hist.innerHTML = data.requests.map(r => {
+                        const dt = new Date(r.createdAt).toLocaleDateString('pt-BR');
+                        const color = statusColors[r.status] || '#888';
+                        return `<div class="cost-item">
+                            <span>Admin/1 Mês &nbsp;<span style="font-size:10px;color:#666">${dt}</span></span>
+                            <span style="display:flex;gap:12px;align-items:center">
+                                <span style="color:#aaa;font-size:11px">R$ ${r.price || '--'}</span>
+                                <span style="color:${color};font-size:11px;font-weight:600">${statusLabels[r.status] || r.status}</span>
+                            </span>
+                        </div>`;
+                    }).join('');
+                }
+            }
+            return; // pula lógica do personal
+        }
+
+        // ---- PERSONAL / MASTER: lógica original ----
+        // Garante que seções estejam no estado correto
+        if (adminSec) adminSec.style.display = 'none';
+
         // Carrega preços
         const prRes = await fetch('/renewal/prices', { credentials: 'include' });
         if (prRes.ok) {
@@ -1729,7 +1812,6 @@ async function loadMyRenewal() {
         // Controla se mostra form ou aviso de pendente
         const pending = data.requests.find(r => r.status === 'pending');
         const pendingMsg = document.getElementById('renewalPendingMsg');
-        const reqForm    = document.getElementById('renewalRequestForm');
         if (pending) {
             if (pendingMsg) pendingMsg.style.display = '';
             if (reqForm)    reqForm.style.display    = 'none';
@@ -1775,6 +1857,22 @@ async function submitRenewal() {
         const data = await res.json();
         if (!res.ok) { showToast(data.error || 'Erro ao solicitar', '#ff4444'); return; }
         showToast(`✅ Solicitação enviada! Plano: ${PLAN_LABELS_RNV[plan]} — R$ ${data.price}`, '#00cc66');
+        loadMyRenewal();
+    } catch (e) { showToast('Erro de conexão', '#ff4444'); }
+}
+
+async function submitAdminRenewal() {
+    const message = document.getElementById('rnv_message_admin')?.value.trim() || '';
+    try {
+        const res = await fetch('/renewal', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ plan: '1m', message })
+        });
+        const data = await res.json();
+        if (!res.ok) { showToast(data.error || 'Erro ao solicitar', '#ff4444'); return; }
+        showToast(`✅ Solicitação enviada! Total: R$ ${data.price}`, '#00cc66');
         loadMyRenewal();
     } catch (e) { showToast('Erro de conexão', '#ff4444'); }
 }

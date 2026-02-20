@@ -1,10 +1,11 @@
-const { User, RenewalRequest } = require('../models');
+const { User, RenewalRequest, Client } = require('../models');
+const { Op } = require('sequelize');
 
 const PLAN_DAYS   = { '1m': 30, '3m': 90, '6m': 180, '1a': 365 };
 const PLAN_LABELS = { '1m': '1 Mês', '3m': '3 Meses', '6m': '6 Meses', '1a': '1 Ano' };
-const DEFAULT_PERSONAL_PRICES = { '1m': 30,  '3m': 80,  '6m': 150, '1a': 250 };
-const DEFAULT_ADMIN_PRICES    = { '1m': 50,  '3m': 130, '6m': 240, '1a': 400 };
-const PLAN_MIN = { '1m': 20 }; // preço mínimo por plano
+const DEFAULT_PERSONAL_PRICES = { '1m': 25,  '3m': 60,  '6m': 150, '1a': 250 };
+const DEFAULT_ADMIN_PRICES    = { '1m': 25,  '3m': 60,  '6m': 150, '1a': 250 }; // não usão mais
+const ADMIN_BILLING = { pricePerClient: 5, adesao: 50 }; // modelo por cliente ativo
 
 /**
  * Retorna os preços que um determinado tipo de usuário paga.
@@ -121,24 +122,55 @@ exports.savePrices = async (req, res) => {
 exports.requestRenewal = async (req, res) => {
     try {
         const { plan, message } = req.body;
+        const { role, id: userId, tenantId } = req.session.user;
+
+        // Admin: cobrança por cliente ativo (sempre 1 mês de extensão)
+        if (role === 'admin') {
+            const pending = await RenewalRequest.findOne({ where: { userId, status: 'pending' } });
+            if (pending) return res.status(400).json({ error: 'Você já tem uma solicitação pendente. Aguarde a aprovação.' });
+            const billing = await calcAdminBilling(userId);
+            const totalPrice = billing.monthlyEstimate + (billing.adesaoPaga ? 0 : ADMIN_BILLING.adesao);
+            const r = await RenewalRequest.create({ userId, tenantId, plan: '1m', price: totalPrice, message: message || null });
+            return res.json({ ok: true, id: r.id, price: totalPrice, plan: '1m', billing });
+        }
+
+        // Personal: plano fixo normal
         if (!PLAN_DAYS[plan]) return res.status(400).json({ error: 'Plano inválido' });
-
-        const userId   = req.session.user.id;
-        const tenantId = req.session.user.tenantId || null;
-
-        // Não permite duplicar pedido pendente
         const pending = await RenewalRequest.findOne({ where: { userId, status: 'pending' } });
         if (pending) return res.status(400).json({ error: 'Você já tem uma solicitação pendente. Aguarde a aprovação.' });
-
-        const prices = await getPricesForRole(req.session.user.role === 'admin' ? 'admin' : 'personal', tenantId);
+        const prices = await getPricesForRole('personal', tenantId);
         const price  = prices[plan] || 0;
-
         const r = await RenewalRequest.create({ userId, tenantId, plan, price, message: message || null });
         res.json({ ok: true, id: r.id, price, plan });
     } catch (e) {
         console.error(e);
         res.status(500).json({ error: 'Erro ao criar solicitação' });
     }
+};
+
+/* Calcula fatura do admin por clientes ativos */
+async function calcAdminBilling(adminId) {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const personalUsers = await User.findAll({ where: { createdBy: adminId, role: 'personal' }, attributes: ['id'] });
+    const allIds = [adminId, ...personalUsers.map(u => u.id)];
+    const activeClients = await Client.count({
+        where: { userId: { [Op.in]: allIds }, status: { [Op.ne]: 'INATIVO' }, dueDate: { [Op.gte]: today } }
+    });
+    const adminUser = await User.findByPk(adminId, { attributes: ['adesaoPaga'] });
+    const adesaoPaga = adminUser?.adesaoPaga || false;
+    const monthlyEstimate = activeClients * ADMIN_BILLING.pricePerClient;
+    return { activeClients, pricePerClient: ADMIN_BILLING.pricePerClient, monthlyEstimate, adesaoPaga, adesaoValue: ADMIN_BILLING.adesao };
+}
+
+/* GET /renewal/billing  — fatura estimada para admin */
+exports.getAdminBilling = async (req, res) => {
+    try {
+        const { role, id } = req.session.user;
+        if (role !== 'admin') return res.status(403).json({ error: 'Apenas para admin' });
+        const billing = await calcAdminBilling(id);
+        const totalEstimate = billing.monthlyEstimate + (billing.adesaoPaga ? 0 : ADMIN_BILLING.adesao);
+        res.json({ ...billing, totalEstimate });
+    } catch (e) { console.error(e); res.status(500).json({ error: 'Erro ao calcular fatura' }); }
 };
 
 /* GET /renewal/my  — usuário vê seus próprios pedidos */
@@ -165,9 +197,7 @@ exports.getAllRequests = async (req, res) => {
         const { role, tenantId, id: meId } = req.session.user;
         if (!['admin', 'master'].includes(role)) return res.status(403).json({ error: 'Sem permissão' });
 
-        const { Op } = require('sequelize');
         const where = { status: 'pending' };
-
         if (role === 'master') {
             // master vê todos os pedidos
         } else {
@@ -215,7 +245,12 @@ exports.approveRequest = async (req, res) => {
             : new Date();
         base.setDate(base.getDate() + (PLAN_DAYS[r.plan] || 30));
 
-        await user.update({ panelExpiry: base });
+        // Se era admin e pagou pela primeira vez, marca adesão como paga
+        if (user.role === 'admin' && !user.adesaoPaga) {
+            await user.update({ panelExpiry: base, adesaoPaga: true });
+        } else {
+            await user.update({ panelExpiry: base });
+        }
         await r.update({ status: 'approved', respondedAt: new Date() });
 
         res.json({

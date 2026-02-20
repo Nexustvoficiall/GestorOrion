@@ -2,6 +2,7 @@ const router = require('express').Router();
 const ctrl   = require('../controllers/renewalController');
 const { requireAuth } = require('../middlewares/authMiddleware');
 
+router.get('/billing',             requireAuth, ctrl.getAdminBilling);
 router.get('/prices',              requireAuth, ctrl.getPrices);
 router.get('/prices/config',       requireAuth, ctrl.getPricesConfig);
 router.post('/prices/config',      requireAuth, ctrl.savePricesConfig);

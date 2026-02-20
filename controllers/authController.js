@@ -193,7 +193,7 @@ exports.listAdmins = async (req, res) => {
 
         const admins = await User.findAll({
             where,
-            attributes: ['id', 'username', 'panelExpiry', 'panelPlan', 'createdAt']
+            attributes: ['id', 'username', 'panelExpiry', 'panelPlan', 'createdAt', 'adesaoPaga']
         });
 
         // Para cada admin: conta personals criados e clientes cadastrados por esses personals
@@ -240,6 +240,7 @@ exports.listAdmins = async (req, res) => {
                 clientsFromPersonals,
                 adminClients,
                 totalRevenue,
+                adesaoPaga: admin.adesaoPaga || false,
                 createdAt: admin.createdAt
             };
         }));

@@ -508,6 +508,42 @@
             </div>
             <button onclick="submitRenewal()">&#128233; SOLICITAR RENOVAÇÃO</button>
         </div>
+
+        <!-- Fatura Admin (por cliente ativo) — visível apenas para admin -->
+        <div id="adminBillingSection" style="display:none">
+            <div class="panel" style="background:#0d1a0d;border:1px solid #00aa44;padding:18px;margin-bottom:16px;border-radius:6px">
+                <h3 style="font-size:11px;letter-spacing:2px;color:#00cc66;margin-bottom:14px">&#128202; FATURA ESTIMADA DO MÊS</h3>
+                <div class="cost-list">
+                    <div class="cost-item">
+                        <span style="color:var(--text-muted)">Clientes ativos</span>
+                        <span id="bil_activeClients" style="color:#4499ff;font-size:18px;font-family:'Rajdhani',sans-serif;font-weight:700">--</span>
+                    </div>
+                    <div class="cost-item">
+                        <span style="color:var(--text-muted)">Valor por cliente</span>
+                        <span style="color:#aaa">R$ 5,00 / mês</span>
+                    </div>
+                    <div class="cost-item">
+                        <span style="color:var(--text-muted)">Estimativa mensal</span>
+                        <span id="bil_monthly" style="color:#ffaa00;font-weight:700">R$ --</span>
+                    </div>
+                    <div id="bil_adesao_row" class="cost-item" style="display:none">
+                        <span style="color:var(--text-muted)">+ Adesão (primeira vez)</span>
+                        <span style="color:#ff6644;font-weight:700">R$ 50,00</span>
+                    </div>
+                    <div class="cost-item" style="border-top:1px solid #1a3a1a;margin-top:8px;padding-top:8px">
+                        <span style="color:#fff;font-weight:700;letter-spacing:1px">TOTAL A PAGAR</span>
+                        <span id="bil_total" style="color:#00cc66;font-size:20px;font-family:'Rajdhani',sans-serif;font-weight:700">R$ --</span>
+                    </div>
+                </div>
+                <div id="bil_adesao_badge" style="display:none;margin-top:8px;color:#00cc66;font-size:11px;letter-spacing:1px">✓ Adesão já paga — apenas R$ 5/cliente ativo</div>
+            </div>
+            <div class="field" style="max-width:440px;margin-bottom:14px">
+                <label>Observação (opcional)</label>
+                <input id="rnv_message_admin" placeholder="Ex: PIX enviado, comprovante no grupo...">
+            </div>
+            <button onclick="submitAdminRenewal()">&#128179; SOLICITAR RENOVAÇÃO</button>
+        </div>
+
         <div style="margin-top:22px">
             <h3 style="font-size:11px;letter-spacing:2px;color:var(--text-muted);margin-bottom:10px">HISTÓRICO DE SOLICITAÇÕES</h3>
             <div id="renewalHistory" class="cost-list"></div>

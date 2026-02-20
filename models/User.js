@@ -82,6 +82,11 @@ const User = sequelize.define('User', {
     saldoCaixaJSON: {
         type: DataTypes.TEXT,
         allowNull: true
+    },
+    // Admin: indica se já pagou a adesão inicial (R$50)
+    adesaoPaga: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
     }
 });
 

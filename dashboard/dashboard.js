@@ -359,7 +359,6 @@ async function loadAuditLog() {
 let _isAdmin = false;
 let _isMaster = false;
 let _isReseller = false;
-let _userId = null;
 
 async function loadUserInfo() {
     try {

@@ -78,7 +78,7 @@ const PLAN_DAYS = { '1m': 30, '30d': 30, '3m': 90, '6m': 180, '1a': 365 };
 
 exports.createReseller = async (req, res) => {
     try {
-        const { username, password, resellerId, role, accessPlan } = req.body;
+        const { username, password, resellerId, role, accessPlan, adminExpiry } = req.body;
         if (!username || !password) return res.status(400).json({ error: 'Dados incompletos' });
 
         const tenantId = req.tenantId || req.session?.user?.tenantId;
@@ -92,9 +92,14 @@ exports.createReseller = async (req, res) => {
         const callerRole = req.session?.user?.role;
         const allowedRole = (callerRole === 'master' && role === 'admin') ? 'admin' : 'personal';
 
-        // Calcular validade do painel para personal e admin (se accessPlan informado)
+        // Validade do painel:
+        // - admin: usa adminExpiry (data direta escolhida pelo master)
+        // - personal: calcula a partir do accessPlan
         let panelExpiry = null;
-        if (accessPlan && PLAN_DAYS[accessPlan]) {
+        if (allowedRole === 'admin' && adminExpiry) {
+            const d = new Date(adminExpiry);
+            if (!isNaN(d)) panelExpiry = d;
+        } else if (accessPlan && PLAN_DAYS[accessPlan]) {
             panelExpiry = new Date();
             panelExpiry.setDate(panelExpiry.getDate() + PLAN_DAYS[accessPlan]);
         }

@@ -398,9 +398,6 @@ async function loadUserInfo() {
         if (_isMaster) {
             const tabU = document.getElementById('tabUsers');
             if (tabU) tabU.style.display = '';
-            // Master vê painel de preços para admin
-            const ppa = document.getElementById('planPricesAdminPanel');
-            if (ppa) ppa.style.display = '';
         }
         // Master ou admin podem configurar preços para personal
         if (_isMaster || _isAdmin) {
@@ -601,13 +598,17 @@ async function createUserReseller() {
     } catch (e) { alert('\u274c Erro ao criar acesso.'); }
 }
 
-// Mostra/oculta cards de plano conforme o perfil selecionado
+// Mostra/oculta cards de plano ou data de acerto conforme o perfil selecionado
 function onNuRoleChange() {
     const role = document.getElementById('nu_role')?.value || 'personal';
-    const planWrap = document.getElementById('nu_plan_wrap');
-    // Plano obrigatório para personal; opcional (mas exibido) para admin
-    if (planWrap) planWrap.style.display = ['personal', 'admin'].includes(role) ? '' : 'none';
-    if (['personal', 'admin'].includes(role)) {
+    const planWrap       = document.getElementById('nu_plan_wrap');
+    const adminExpiryWrap = document.getElementById('nu_admin_expiry_wrap');
+    if (role === 'admin') {
+        if (planWrap)        planWrap.style.display        = 'none';
+        if (adminExpiryWrap) adminExpiryWrap.style.display = '';
+    } else {
+        if (planWrap)        planWrap.style.display        = '';
+        if (adminExpiryWrap) adminExpiryWrap.style.display = 'none';
         const current = document.getElementById('nu_accessPlan')?.value || '6m';
         updatePlanPreview(current);
     }
@@ -1887,17 +1888,6 @@ async function loadPlanPrices() {
                 const el = document.getElementById('pp_' + k);
                 if (el) el.value = prices[k] || '';
             });
-        }
-        // Carrega preços para ADMIN (somente master)
-        if (_isMaster) {
-            const ra = await fetch('/renewal/prices/config?type=admin', { credentials: 'include' });
-            if (ra.ok) {
-                const prices = await ra.json();
-                ['1m','3m','6m','1a'].forEach(k => {
-                    const el = document.getElementById('ppa_' + k);
-                    if (el) el.value = prices[k] || '';
-                });
-            }
         }
     } catch (e) {}
 }

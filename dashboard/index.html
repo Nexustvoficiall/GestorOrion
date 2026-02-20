@@ -624,16 +624,29 @@
         </div>
     </section>
 
-    <!-- Preços dos Planos de Renovação (somente master) -->
-    <section class="panel" id="planPricesPanel" style="display:none">
-        <h2>&#128176; PREÇOS DOS PLANOS DE RENOVAÇÃO</h2>
-        <p class="panel-desc">Defina quanto cobramos por cada período de renovação do painel. O valor será exibido para o cliente ao solicitar.</p>
+    <!-- Preços dos Planos: ADMIN (somente master define) -->
+    <section class="panel" id="planPricesAdminPanel" style="display:none">
+        <h2>&#128081; PREÇOS PARA ADMIN</h2>
+        <p class="panel-desc">O quanto os <strong>administradores</strong> pagam para renovar o acesso ao painel.</p>
         <div class="form-row" style="margin-top:14px">
-            <div class="field"><label>1 Mês (R$)</label><input id="pp_1m" type="number" min="0" step="0.01" placeholder="30.00"></div>
+            <div class="field"><label>1 Mês — mín. R$ 20 (R$)</label><input id="ppa_1m" type="number" min="20" step="0.01" placeholder="50.00"></div>
+            <div class="field"><label>3 Meses (R$)</label><input id="ppa_3m" type="number" min="0" step="0.01" placeholder="130.00"></div>
+            <div class="field"><label>6 Meses (R$)</label><input id="ppa_6m" type="number" min="0" step="0.01" placeholder="240.00"></div>
+            <div class="field"><label>1 Ano (R$)</label><input id="ppa_1a" type="number" min="0" step="0.01" placeholder="400.00"></div>
+            <div class="field btn-field"><button onclick="savePlanPrices('admin')">SALVAR PREÇOS ADMIN</button></div>
+        </div>
+    </section>
+
+    <!-- Preços dos Planos: PERSONAL (master define padrão, admin define para seus personals) -->
+    <section class="panel" id="planPricesPersonalPanel" style="display:none">
+        <h2>&#128176; PREÇOS PARA PERSONAL</h2>
+        <p class="panel-desc">O quanto os <strong>personal</strong> pagam para renovar o acesso ao painel.</p>
+        <div class="form-row" style="margin-top:14px">
+            <div class="field"><label>1 Mês — mín. R$ 20 (R$)</label><input id="pp_1m" type="number" min="20" step="0.01" placeholder="30.00"></div>
             <div class="field"><label>3 Meses (R$)</label><input id="pp_3m" type="number" min="0" step="0.01" placeholder="80.00"></div>
             <div class="field"><label>6 Meses (R$)</label><input id="pp_6m" type="number" min="0" step="0.01" placeholder="150.00"></div>
             <div class="field"><label>1 Ano (R$)</label><input id="pp_1a" type="number" min="0" step="0.01" placeholder="250.00"></div>
-            <div class="field btn-field"><button onclick="savePlanPrices()">SALVAR PREÇOS</button></div>
+            <div class="field btn-field"><button onclick="savePlanPrices('personal')">SALVAR PREÇOS PERSONAL</button></div>
         </div>
     </section>
 
@@ -672,9 +685,9 @@
                     <th>STATUS</th>
                     <th>PLANO</th>
                     <th>VALIDADE</th>
-                    <th style="text-align:center">PERSONALS CRIADOS</th>
-                    <th style="text-align:center">CLIENTES (PERSONALS)</th>
-                    <th style="text-align:center">CLIENTES (PRÃ“PRIOS)</th>
+                    <th style="text-align:center">PERSONALS</th>
+                    <th style="text-align:center">CLIENTES</th>
+                    <th style="text-align:right">RECEITA ATIVA</th>
                     <th></th>
                 </tr>
             </thead>

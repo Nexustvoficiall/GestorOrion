@@ -250,22 +250,25 @@ async function loadAdminUsers() {
                 ? '<span class="badge badge-pendente" style="font-size:9px">⚠ EXPIRADO</span>'
                 : '<span class="badge badge-pago" style="font-size:9px">✓ ATIVO</span>';
             const createdAt = new Date(a.createdAt).toLocaleDateString('pt-BR');
+            const totalClients = (a.clientsFromPersonals || 0) + (a.adminClients || 0);
+            const revenueColor = (a.totalRevenue || 0) > 0 ? '#00cc66' : '#555';
             return `<tr>
                 <td><strong>${a.username}</strong><br><span style="font-size:10px;color:#666">criado em ${createdAt}</span></td>
                 <td>${statusBadge}</td>
                 <td><span style="font-size:10px;color:var(--accent)">${a.panelPlan}</span></td>
                 <td>${expDate}</td>
                 <td style="text-align:center">
-                    <span style="font-size:20px;font-family:'Rajdhani','Segoe UI',sans-serif;color:var(--accent2)">${a.personalCount}</span>
-                    <br><span style="font-size:10px;color:#666">revendedor(es)</span>
+                    <span style="font-size:18px;font-family:'Rajdhani','Segoe UI',sans-serif;color:var(--accent2)">${a.personalCount}</span>
+                    <span style="font-size:10px;color:#666"> personal(s)</span>
+                    <br><span style="font-size:10px;color:#aaa">${totalClients} cliente(s)</span>
                 </td>
                 <td style="text-align:center">
-                    <span style="font-size:20px;font-family:'Rajdhani','Segoe UI',sans-serif;color:#4499ff">${a.clientsFromPersonals}</span>
-                    <br><span style="font-size:10px;color:#666">cliente(s)</span>
+                    <span style="font-size:18px;font-family:'Rajdhani','Segoe UI',sans-serif;color:#4499ff">${a.clientsFromPersonals}</span>
+                    <br><span style="font-size:10px;color:#666">via personal</span>
                 </td>
-                <td style="text-align:center">
-                    <span style="font-size:20px;font-family:'Rajdhani','Segoe UI',sans-serif;color:#aaa">${a.adminClients}</span>
-                    <br><span style="font-size:10px;color:#666">cliente(s)</span>
+                <td style="text-align:right">
+                    <span style="font-size:16px;font-family:'Rajdhani','Segoe UI',sans-serif;color:${revenueColor}">${fmt(a.totalRevenue || 0)}</span>
+                    <br><span style="font-size:10px;color:#555">clientes ativos</span>
                 </td>
                 <td>
                     <button class="btn-sm" style="font-size:10px;background:#c0392b" onclick="deleteUser(${a.id}, '${a.username.replace(/'/g, '')}')">&#128465; Excluir</button>
@@ -395,8 +398,14 @@ async function loadUserInfo() {
         if (_isMaster) {
             const tabU = document.getElementById('tabUsers');
             if (tabU) tabU.style.display = '';
-            const pp = document.getElementById('planPricesPanel');
-            if (pp) pp.style.display = '';
+            // Master vê painel de preços para admin
+            const ppa = document.getElementById('planPricesAdminPanel');
+            if (ppa) ppa.style.display = '';
+        }
+        // Master ou admin podem configurar preços para personal
+        if (_isMaster || _isAdmin) {
+            const ppp = document.getElementById('planPricesPersonalPanel');
+            if (ppp) ppp.style.display = '';
         }
         // Personal: painel completo com dados isolados — não esconder nenhum card
         // (backend já filtra pelos dados exclusivos do usuário)
@@ -1772,30 +1781,51 @@ async function submitRenewal() {
 
 async function loadPlanPrices() {
     try {
-        const res = await fetch('/renewal/prices', { credentials: 'include' });
-        if (!res.ok) return;
-        const prices = await res.json();
-        ['1m','3m','6m','1a'].forEach(k => {
-            const el = document.getElementById('pp_' + k);
-            if (el) el.value = prices[k] || '';
-        });
+        // Carrega preços para PERSONAL (master e admin configuram)
+        const rp = await fetch('/renewal/prices/config?type=personal', { credentials: 'include' });
+        if (rp.ok) {
+            const prices = await rp.json();
+            ['1m','3m','6m','1a'].forEach(k => {
+                const el = document.getElementById('pp_' + k);
+                if (el) el.value = prices[k] || '';
+            });
+        }
+        // Carrega preços para ADMIN (somente master)
+        if (_isMaster) {
+            const ra = await fetch('/renewal/prices/config?type=admin', { credentials: 'include' });
+            if (ra.ok) {
+                const prices = await ra.json();
+                ['1m','3m','6m','1a'].forEach(k => {
+                    const el = document.getElementById('ppa_' + k);
+                    if (el) el.value = prices[k] || '';
+                });
+            }
+        }
     } catch (e) {}
 }
 
-async function savePlanPrices() {
-    const prices = {};
+async function savePlanPrices(type = 'personal') {
+    // Validação: plano mensal mínimo R$ 20
+    const prefix = type === 'admin' ? 'ppa_' : 'pp_';
+    const val1m = Number(document.getElementById(prefix + '1m')?.value);
+    if (val1m < 20) {
+        showToast('O plano mensal deve ser no mínimo R$ 20,00', '#ff4444');
+        return;
+    }
+    const prices = { type };
     ['1m','3m','6m','1a'].forEach(k => {
-        prices[k] = Number(document.getElementById('pp_' + k)?.value) || 0;
+        prices[k] = Number(document.getElementById(prefix + k)?.value) || 0;
     });
     try {
-        const res = await fetch('/renewal/prices', {
+        const res = await fetch('/renewal/prices/config', {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(prices)
         });
+        const data = await res.json();
         if (res.ok) showToast('✅ Preços salvos!', '#00cc66');
-        else showToast('Erro ao salvar preços', '#ff4444');
+        else showToast(data.error || 'Erro ao salvar preços', '#ff4444');
     } catch (e) { showToast('Erro de conexão', '#ff4444'); }
 }
 

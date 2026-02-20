@@ -365,6 +365,7 @@ sequelize.sync().then(async () => {
             await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "expensesJSON" TEXT;`);
             await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "extraExpensesJSON" TEXT;`);
             await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "planPricesJSON" TEXT;`);
+            await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "planPricesAdminJSON" TEXT;`);
             await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "saldoCaixaJSON" TEXT;`);
         } catch (_) { /* coluna já existe — ignorar */ }
     } else {
@@ -378,6 +379,7 @@ sequelize.sync().then(async () => {
         try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "expensesJSON" TEXT`); } catch (_) {}
         try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "extraExpensesJSON" TEXT`); } catch (_) {}
         try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "planPricesJSON" TEXT`); } catch (_) {}
+        try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "planPricesAdminJSON" TEXT`); } catch (_) {}
         try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "saldoCaixaJSON" TEXT`); } catch (_) {}
     }
     // Migra role 'reseller' → 'personal' (renomeio de perfil) — roda em PG e SQLite

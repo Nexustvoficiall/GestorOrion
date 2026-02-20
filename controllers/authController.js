@@ -204,17 +204,30 @@ exports.listAdmins = async (req, res) => {
                 attributes: ['id']
             });
             const personalIds = personalUsers.map(u => u.id);
+            const allUserIds  = [admin.id, ...personalIds];
 
-            // Total de clientes cadastrados pelos personals deste admin
-            let totalClients = 0;
-            if (personalIds.length > 0) {
-                totalClients = await Client.count({
-                    where: { userId: { [Op.in]: personalIds } }
-                });
-            }
+            // Total de clientes e receita gerada pelos personals deste admin
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
 
-            // Clientes cadastrados diretamente pelo admin (userId = admin.id)
+            const clientsFromPersonals = personalIds.length > 0
+                ? await Client.count({ where: { userId: { [Op.in]: personalIds } } })
+                : 0;
+
+            // Clientes cadastrados diretamente pelo admin
             const adminClients = await Client.count({ where: { userId: admin.id } });
+
+            // Receita: soma de planValue dos clientes ativos (dueDate >= hoje)
+            const { fn: seqFn, col: seqCol, literal: seqLiteral } = require('sequelize');
+            const activeClients = await Client.findAll({
+                where: {
+                    userId: { [Op.in]: allUserIds },
+                    status: { [Op.ne]: 'INATIVO' },
+                    dueDate: { [Op.gte]: today }
+                },
+                attributes: ['planValue']
+            });
+            const totalRevenue = activeClients.reduce((acc, c) => acc + (Number(c.planValue) || 0), 0);
 
             const isExpired = admin.panelExpiry && new Date(admin.panelExpiry) < new Date();
             return {
@@ -224,8 +237,9 @@ exports.listAdmins = async (req, res) => {
                 panelPlan: admin.panelPlan || 'STANDARD',
                 isExpired,
                 personalCount: personalIds.length,
-                clientsFromPersonals: totalClients,
+                clientsFromPersonals,
                 adminClients,
+                totalRevenue,
                 createdAt: admin.createdAt
             };
         }));

@@ -68,8 +68,13 @@ const User = sequelize.define('User', {
         type: DataTypes.TEXT,
         allowNull: true
     },
-    // Preços dos planos de renovação (somente master usa este campo)
+    // Preços dos planos de renovação — personal users
     planPricesJSON: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
+    // Preços dos planos de renovação — admin users (somente master define)
+    planPricesAdminJSON: {
         type: DataTypes.TEXT,
         allowNull: true
     },

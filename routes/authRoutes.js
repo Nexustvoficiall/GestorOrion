@@ -36,6 +36,11 @@ router.delete('/users/:userId', requireAuth, requireAdmin, enforceTenant, ctrl.d
 router.get('/admins', requireAuth, ctrl.listAdmins);
 router.get('/master-financial', requireAuth, ctrl.getMasterFinancial);
 
+/* Somente master: pagamentos dos admins */
+router.post('/users/:userId/payments',              requireAuth, ctrl.addPayment);
+router.get('/users/:userId/payments',               requireAuth, ctrl.getPayments);
+router.delete('/users/:userId/payments/:paymentId', requireAuth, ctrl.deletePayment);
+
 /* Preferências pessoais — tema de cor e logo (qualquer usuário autenticado) */
 router.get('/preferences',  requireAuth, ctrl.getPreferences);
 router.put('/preferences',  requireAuth, ctrl.savePreferences);

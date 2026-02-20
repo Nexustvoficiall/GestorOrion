@@ -87,6 +87,11 @@ const User = sequelize.define('User', {
     adesaoPaga: {
         type: DataTypes.BOOLEAN,
         defaultValue: false
+    },
+    // Histórico de pagamentos mensais do admin (JSON array de {id, month, amount, paidAt, note})
+    paymentsJSON: {
+        type: DataTypes.TEXT,
+        allowNull: true
     }
 });
 

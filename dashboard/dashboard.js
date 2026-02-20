@@ -270,10 +270,15 @@ async function loadAdminUsers() {
                 </td>
                 <td style="text-align:right">
                     <span style="font-size:16px;font-family:'Rajdhani','Segoe UI',sans-serif;color:${revenueColor}">${fmt(a.totalRevenue || 0)}</span>
+                    ${a.lastPayment
+                        ? `<br><span style="font-size:10px;color:#00cc66">&#128179; ${a.lastPayment.month} &mdash; R$${Number(a.lastPayment.amount).toFixed(2).replace('.',',')}</span>`
+                        : '<br><span style="font-size:10px;color:#555">sem pagtos</span>'}
                 </td>
                 <td style="white-space:nowrap">
                     <button class="btn-sm" style="font-size:10px" onclick="openEditUserModal(${a.id},'${safeUser}','admin','${expiryVal}',${a.adesaoPaga})">&#9998; Editar</button>
-                    <button class="btn-sm" style="font-size:10px;background:#c0392b;margin-left:4px" onclick="deleteUser(${a.id}, '${safeUser}')">&#128465; Excluir</button>
+                    <button class="btn-sm" style="font-size:10px;background:#1565c0;margin-left:4px" onclick="openAddPaymentModal(${a.id},'${safeUser}',${a.personalCount || 0})">&#128179; Pgto</button>
+                    <button class="btn-sm" style="font-size:10px;background:#37474f;margin-left:4px" onclick="openPayHistory(${a.id},'${safeUser}')">&#128203;</button>
+                    <button class="btn-sm" style="font-size:10px;background:#c0392b;margin-left:4px" onclick="deleteUser(${a.id}, '${safeUser}')">&#128465;</button>
                 </td>
             </tr>`;
         }).join('');
@@ -748,6 +753,93 @@ async function saveEditUser() {
         loadUsers();
         if (_isMaster) { loadAdminUsers(); loadMasterFinancial(); }
     } catch (e) { showToast('Erro de conex\u00e3o', '#ff4444'); }
+}
+
+
+/* ===== PAGAMENTOS DOS ADMINS (somente master) ===== */
+function openAddPaymentModal(id, username, personalCount) {
+    document.getElementById('ap_userId').value   = id;
+    document.getElementById('ap_username').textContent = username;
+    const now  = new Date();
+    const yyyy = now.getFullYear();
+    const mm   = String(now.getMonth() + 1).padStart(2, '0');
+    document.getElementById('ap_month').value  = `${yyyy}-${mm}`;
+    document.getElementById('ap_amount').value = (personalCount * 5) || '';
+    document.getElementById('ap_note').value   = '';
+    document.getElementById('modalAddPayment').style.display = 'flex';
+}
+
+function closeAddPaymentModal() {
+    document.getElementById('modalAddPayment').style.display = 'none';
+}
+
+async function savePayment() {
+    const userId = document.getElementById('ap_userId').value;
+    const month  = document.getElementById('ap_month').value;
+    const amount = document.getElementById('ap_amount').value;
+    const note   = document.getElementById('ap_note').value;
+    if (!month || !amount) { showToast('Informe m\u00eas e valor', '#ff4444'); return; }
+    try {
+        const res = await fetch('/auth/users/' + userId + '/payments', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ month, amount, note })
+        });
+        const data = await res.json();
+        if (!res.ok) { showToast(data.error || 'Erro', '#ff4444'); return; }
+        showToast('\u2705 Pagamento registrado!', '#00cc66');
+        closeAddPaymentModal();
+        loadAdminUsers();
+        loadMasterFinancial();
+    } catch (e) { showToast('Erro de conex\u00e3o', '#ff4444'); }
+}
+
+async function openPayHistory(id, username) {
+    document.getElementById('ph_username').textContent = username;
+    const list = document.getElementById('ph_list');
+    list.innerHTML = '<span style="color:#555;font-size:12px">Carregando...</span>';
+    document.getElementById('modalPayHistory').style.display = 'flex';
+    try {
+        const res  = await fetch('/auth/users/' + id + '/payments', { credentials: 'include' });
+        const data = await res.json();
+        if (!res.ok) { list.innerHTML = '<span style="color:#f44">Erro ao carregar</span>'; return; }
+        const payments = data.payments || [];
+        if (!payments.length) {
+            list.innerHTML = '<span style="color:#555;font-size:12px">Nenhum pagamento registrado ainda.</span>';
+            return;
+        }
+        list.innerHTML = payments.map(p => {
+            const dt   = new Date(p.paidAt).toLocaleString('pt-BR');
+            const fmtM = p.month ? (() => { const [y,m] = p.month.split('-'); return m + '/' + y; })() : p.month;
+            return '<div class="cost-item" style="margin-bottom:6px;padding:8px 10px;background:#0d1520;border-radius:4px">'
+                 + '<div style="display:flex;justify-content:space-between;align-items:center">'
+                 + '<span style="font-size:13px;color:#4499ff;font-family:Rajdhani,sans-serif">&#128197; ' + fmtM + '</span>'
+                 + '<span style="font-size:14px;color:#00cc66;font-family:Rajdhani,sans-serif">R$ ' + Number(p.amount).toFixed(2).replace('.',',') + '</span>'
+                 + '<button class="btn-sm" style="font-size:9px;background:#c0392b;padding:2px 6px" onclick="deletePayment(' + id + ',\'' + p.id + '\')">&#10005;</button>'
+                 + '</div>'
+                 + (p.note ? '<div style="font-size:10px;color:#888;margin-top:3px">' + p.note + '</div>' : '')
+                 + '<div style="font-size:9px;color:#444;margin-top:2px">Registrado em ' + dt + '</div>'
+                 + '</div>';
+        }).join('');
+    } catch(e) { list.innerHTML = '<span style="color:#f44">Erro</span>'; }
+}
+
+function closePayHistory() {
+    document.getElementById('modalPayHistory').style.display = 'none';
+}
+
+async function deletePayment(userId, paymentId) {
+    if (!confirm('Excluir este pagamento?')) return;
+    try {
+        const res = await fetch('/auth/users/' + userId + '/payments/' + paymentId, {
+            method: 'DELETE', credentials: 'include'
+        });
+        if (!res.ok) { showToast('Erro ao excluir', '#ff4444'); return; }
+        showToast('Pagamento exclu\u00eddo', '#ffaa00');
+        const username = document.getElementById('ph_username').textContent;
+        openPayHistory(userId, username);
+        loadAdminUsers();
+    } catch(e) { showToast('Erro', '#ff4444'); }
 }
 
 

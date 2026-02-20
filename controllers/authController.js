@@ -198,7 +198,7 @@ exports.listAdmins = async (req, res) => {
 
         const admins = await User.findAll({
             where,
-            attributes: ['id', 'username', 'panelExpiry', 'panelPlan', 'createdAt', 'adesaoPaga']
+            attributes: ['id', 'username', 'panelExpiry', 'panelPlan', 'createdAt', 'adesaoPaga', 'paymentsJSON']
         });
 
         // Para cada admin: conta personals criados e clientes cadastrados por esses personals
@@ -235,6 +235,8 @@ exports.listAdmins = async (req, res) => {
             const totalRevenue = activeClients.reduce((acc, c) => acc + (Number(c.planValue) || 0), 0);
 
             const isExpired = admin.panelExpiry && new Date(admin.panelExpiry) < new Date();
+            const payments  = JSON.parse(admin.paymentsJSON || '[]');
+            const lastPay   = payments.length ? payments[payments.length - 1] : null;
             return {
                 id: admin.id,
                 username: admin.username,
@@ -246,7 +248,8 @@ exports.listAdmins = async (req, res) => {
                 adminClients,
                 totalRevenue,
                 adesaoPaga: admin.adesaoPaga || false,
-                createdAt: admin.createdAt
+                createdAt: admin.createdAt,
+                lastPayment: lastPay ? { month: lastPay.month, amount: lastPay.amount, paidAt: lastPay.paidAt } : null
             };
         }));
 
@@ -417,7 +420,7 @@ exports.getMasterFinancial = async (req, res) => {
         const { role } = req.session?.user || {};
         if (role !== 'master') return res.status(403).json({ error: 'Sem permissão' });
 
-        const admins = await User.findAll({ where: { role: 'admin' }, attributes: ['id', 'username', 'panelExpiry', 'adesaoPaga', 'createdAt'] });
+        const admins = await User.findAll({ where: { role: 'admin' }, attributes: ['id', 'username', 'panelExpiry', 'adesaoPaga', 'createdAt', 'paymentsJSON'] });
         const today  = new Date(); today.setHours(0, 0, 0, 0);
         const in7    = new Date(today); in7.setDate(in7.getDate() + 7);
 
@@ -439,10 +442,14 @@ exports.getMasterFinancial = async (req, res) => {
 
             totalMonthlyEstimate += monthlyEst;
 
+            const payments = JSON.parse(a.paymentsJSON || '[]');
+            const lastPay  = payments.length ? payments[payments.length - 1] : null;
+
             return {
                 id: a.id, username: a.username, personalCount,
                 monthlyEst, totalEst, adesaoPaga: a.adesaoPaga || false,
-                panelExpiry: a.panelExpiry, daysLeft, isExpired, isExpiringSoon
+                panelExpiry: a.panelExpiry, daysLeft, isExpired, isExpiringSoon,
+                lastPayment: lastPay ? { month: lastPay.month, amount: lastPay.amount, paidAt: lastPay.paidAt } : null
             };
         }));
 
@@ -458,6 +465,80 @@ exports.getMasterFinancial = async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Erro ao calcular financeiro' });
+    }
+};
+
+/* REGISTRAR PAGAMENTO DE ADMIN (somente master) */
+exports.addPayment = async (req, res) => {
+    try {
+        const { role } = req.session?.user || {};
+        if (role !== 'master') return res.status(403).json({ error: 'Sem permissão' });
+
+        const { userId } = req.params;
+        const { month, amount, note } = req.body;
+        if (!month || !amount) return res.status(400).json({ error: 'Mês e valor são obrigatórios' });
+
+        const user = await User.findOne({ where: { id: userId, role: 'admin' } });
+        if (!user) return res.status(404).json({ error: 'Admin não encontrado' });
+
+        const payments = JSON.parse(user.paymentsJSON || '[]');
+        const entry = {
+            id: Date.now(),
+            month: month.trim(),           // ex.: "2026-02"
+            amount: parseFloat(amount),
+            paidAt: new Date().toISOString(),
+            note: (note || '').slice(0, 200)
+        };
+        payments.push(entry);
+        await user.update({ paymentsJSON: JSON.stringify(payments) });
+        await audit(req, 'ADD_PAYMENT', 'User', Number(userId), { month: entry.month, amount: entry.amount });
+        res.json({ ok: true, entry });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Erro ao registrar pagamento' });
+    }
+};
+
+/* HISTÓRICO DE PAGAMENTOS DE UM ADMIN (somente master) */
+exports.getPayments = async (req, res) => {
+    try {
+        const { role } = req.session?.user || {};
+        if (role !== 'master') return res.status(403).json({ error: 'Sem permissão' });
+
+        const { userId } = req.params;
+        const user = await User.findOne({
+            where: { id: userId, role: 'admin' },
+            attributes: ['id', 'username', 'paymentsJSON']
+        });
+        if (!user) return res.status(404).json({ error: 'Admin não encontrado' });
+
+        const payments = JSON.parse(user.paymentsJSON || '[]');
+        res.json({ username: user.username, payments: payments.reverse() }); // mais recente primeiro
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Erro ao buscar pagamentos' });
+    }
+};
+
+/* EXCLUIR PAGAMENTO DE ADMIN (somente master) */
+exports.deletePayment = async (req, res) => {
+    try {
+        const { role } = req.session?.user || {};
+        if (role !== 'master') return res.status(403).json({ error: 'Sem permissão' });
+
+        const { userId, paymentId } = req.params;
+        const user = await User.findOne({ where: { id: userId, role: 'admin' } });
+        if (!user) return res.status(404).json({ error: 'Admin não encontrado' });
+
+        const payments = JSON.parse(user.paymentsJSON || '[]');
+        const newList  = payments.filter(p => String(p.id) !== String(paymentId));
+        if (newList.length === payments.length) return res.status(404).json({ error: 'Pagamento não encontrado' });
+
+        await user.update({ paymentsJSON: JSON.stringify(newList) });
+        res.json({ ok: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Erro ao excluir pagamento' });
     }
 };
 

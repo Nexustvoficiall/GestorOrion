@@ -343,6 +343,14 @@ function refreshServerSelects(keepVal) {
         s.innerHTML = opts;
         if (v) s.value = v;
     });
+    /* filtro por servidor na aba revendas */
+    const fSrv = document.getElementById('filterResellerServer');
+    if (fSrv) {
+        const cur = fSrv.value;
+        fSrv.innerHTML = '<option value="">Todos os servidores</option>' +
+            _serverCache.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+        if (cur) fSrv.value = cur;
+    }
 }
 
 async function createServer() {
@@ -751,8 +759,10 @@ async function loadResellers() {
     try {
         const res = await fetch('/resellers', { credentials: 'include' });
         let data = await res.json();
-        const filter = document.getElementById('filterResellerStatus')?.value;
-        if (filter) data = data.filter(r => r.status === filter);
+        const filterStatus = document.getElementById('filterResellerStatus')?.value;
+        const filterServer = document.getElementById('filterResellerServer')?.value;
+        if (filterStatus) data = data.filter(r => r.status === filterStatus);
+        if (filterServer) data = data.filter(r => (r.servers || []).some(s => s.server === filterServer));
         const table = document.getElementById('resellerList');
         table.innerHTML = '';
         if (!data.length) {

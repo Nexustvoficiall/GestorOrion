@@ -1711,7 +1711,7 @@ async function loadMyRenewal() {
             if (bilRes.ok) {
                 const b = await bilRes.json();
                 const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
-                setTxt('bil_activeClients', b.activeClients);
+                setTxt('bil_activeClients', b.personalCount ?? b.activeClients);
                 setTxt('bil_monthly', 'R$ ' + Number(b.monthlyEstimate || 0).toFixed(2).replace('.', ','));
                 setTxt('bil_total',   'R$ ' + Number(b.totalEstimate   || 0).toFixed(2).replace('.', ','));
                 const adesaoRow   = document.getElementById('bil_adesao_row');

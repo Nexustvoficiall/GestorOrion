@@ -1,11 +1,10 @@
-const { User, RenewalRequest, Client } = require('../models');
-const { Op } = require('sequelize');
+const { User, RenewalRequest } = require('../models');
 
 const PLAN_DAYS   = { '1m': 30, '3m': 90, '6m': 180, '1a': 365 };
 const PLAN_LABELS = { '1m': '1 Mês', '3m': '3 Meses', '6m': '6 Meses', '1a': '1 Ano' };
 const DEFAULT_PERSONAL_PRICES = { '1m': 25,  '3m': 60,  '6m': 150, '1a': 250 };
 const DEFAULT_ADMIN_PRICES    = { '1m': 25,  '3m': 60,  '6m': 150, '1a': 250 }; // não usão mais
-const ADMIN_BILLING = { pricePerClient: 5, adesao: 50 }; // modelo por cliente ativo
+const ADMIN_BILLING = { pricePerPersonal: 5, adesao: 50 }; // modelo por personal criado
 
 /**
  * Retorna os preços que um determinado tipo de usuário paga.
@@ -124,7 +123,7 @@ exports.requestRenewal = async (req, res) => {
         const { plan, message } = req.body;
         const { role, id: userId, tenantId } = req.session.user;
 
-        // Admin: cobrança por cliente ativo (sempre 1 mês de extensão)
+        // Admin: cobrança por personal criado (sempre 1 mês de extensão)
         if (role === 'admin') {
             const pending = await RenewalRequest.findOne({ where: { userId, status: 'pending' } });
             if (pending) return res.status(400).json({ error: 'Você já tem uma solicitação pendente. Aguarde a aprovação.' });
@@ -148,18 +147,13 @@ exports.requestRenewal = async (req, res) => {
     }
 };
 
-/* Calcula fatura do admin por clientes ativos */
+/* Calcula fatura do admin por personals criados */
 async function calcAdminBilling(adminId) {
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const personalUsers = await User.findAll({ where: { createdBy: adminId, role: 'personal' }, attributes: ['id'] });
-    const allIds = [adminId, ...personalUsers.map(u => u.id)];
-    const activeClients = await Client.count({
-        where: { userId: { [Op.in]: allIds }, status: { [Op.ne]: 'INATIVO' }, dueDate: { [Op.gte]: today } }
-    });
+    const personalCount = await User.count({ where: { createdBy: adminId, role: 'personal' } });
     const adminUser = await User.findByPk(adminId, { attributes: ['adesaoPaga'] });
     const adesaoPaga = adminUser?.adesaoPaga || false;
-    const monthlyEstimate = activeClients * ADMIN_BILLING.pricePerClient;
-    return { activeClients, pricePerClient: ADMIN_BILLING.pricePerClient, monthlyEstimate, adesaoPaga, adesaoValue: ADMIN_BILLING.adesao };
+    const monthlyEstimate = personalCount * ADMIN_BILLING.pricePerPersonal;
+    return { personalCount, pricePerPersonal: ADMIN_BILLING.pricePerPersonal, monthlyEstimate, adesaoPaga, adesaoValue: ADMIN_BILLING.adesao };
 }
 
 /* GET /renewal/billing  — fatura estimada para admin */

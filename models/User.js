@@ -63,6 +63,10 @@ const User = sequelize.define('User', {
     expensesJSON: {
         type: DataTypes.TEXT,
         allowNull: true
+    },
+    extraExpensesJSON: {
+        type: DataTypes.TEXT,
+        allowNull: true
     }
 });
 

@@ -112,6 +112,10 @@ async function applyLogoFromServer() {
         if (p.expensesJSON) {
             try { renderExpenses(JSON.parse(p.expensesJSON)); } catch (_) {}
         }
+        // Carrega gastos extras salvos
+        if (p.extraExpensesJSON) {
+            try { renderExtras(JSON.parse(p.extraExpensesJSON)); } catch (_) {}
+        }
     } catch (e) { /* falha silenciosa */ }
 }
 
@@ -212,6 +216,7 @@ function switchTab(name) {
     const btn = document.querySelector('[data-tab="' + name + '"]');
     if (btn) btn.classList.add('active');
     if (name === 'financeiro') loadMetrics();
+    if (name === 'extras') loadExtras();
     if (name === 'admin') { loadResellerSelect(); loadUsers(); loadLicenseInfo(); updatePlanPreview('6m'); }
     if (name === 'servidores') loadServers();
     if (name === 'users') loadAdminUsers();
@@ -1380,6 +1385,116 @@ function calcExpenseTotal() {
         const rev = parseFloat(revEl.textContent.replace('R$ ', '').replace(',', '.')) || 0;
         profEl.textContent = fmt(rev - total);
     }
+}
+
+/* ===== GASTOS EXTRAS ===== */
+function addExtraRow(data) {
+    const container = document.getElementById('extraContainer');
+    if (!container) return;
+    if (!container.children.length) {
+        const hdr = document.createElement('div');
+        hdr.className = 'serverRow';
+        hdr.style.gridTemplateColumns = '1fr 160px 36px';
+        hdr.innerHTML = '<span>DESCRIÇÃO DO GASTO</span><span>VALOR (R$)</span><span></span>';
+        container.appendChild(hdr);
+    }
+    const div = document.createElement('div');
+    div.className = 'serverRow extra-row';
+    div.style.gridTemplateColumns = '1fr 160px 36px';
+    div.innerHTML = `
+        <input class="ext_name" type="text" placeholder="Ex: Alimentação, Transporte..." value="${data ? data.name.replace(/"/g,'&quot;') : ''}">
+        <input class="ext_value" type="number" placeholder="0.00" min="0" step="0.01" value="${data ? data.value : ''}" oninput="calcExtrasTotal()">
+        <button class="btn-secondary btn-remove" onclick="this.parentNode.remove();calcExtrasTotal()">&#10006;</button>
+    `;
+    container.appendChild(div);
+    calcExtrasTotal();
+}
+
+function renderExtras(arr) {
+    const container = document.getElementById('extraContainer');
+    if (!container) return;
+    container.innerHTML = '';
+    if (!arr || !arr.length) { calcExtrasTotal(); return; }
+    arr.forEach(item => addExtraRow(item));
+    calcExtrasTotal();
+}
+
+function calcExtrasTotal() {
+    const rows = document.querySelectorAll('#extraContainer .extra-row');
+    const total = Array.from(rows).reduce((acc, r) => {
+        return acc + (Number(r.querySelector('.ext_value')?.value) || 0);
+    }, 0);
+    const el = document.getElementById('extraTotal');
+    if (el) el.textContent = fmt(total);
+    // Atualiza card de gastos extras no resumo
+    const exEl = document.getElementById('ex_extras');
+    if (exEl) exEl.textContent = fmt(total);
+    // Recalcula saldo líquido se tivermos os outros valores
+    _recalcExSaldo();
+}
+
+function _recalcExSaldo() {
+    const parseCard = id => {
+        const el = document.getElementById(id);
+        if (!el) return 0;
+        return parseFloat(el.textContent.replace('R$','').replace(/\./g,'').replace(',','.').trim()) || 0;
+    };
+    const revenue  = parseCard('ex_revenue');
+    const cost     = parseCard('ex_cost');
+    const extras   = parseCard('ex_extras');
+    const monthly  = parseCard('ex_monthly');
+    const saldo    = revenue - cost - extras - monthly;
+    const profEl   = document.getElementById('ex_profit');
+    if (profEl) {
+        profEl.textContent = fmt(saldo);
+        profEl.style.color = saldo >= 0 ? '#00cc66' : '#ff4444';
+    }
+    // Atualiza breakdown
+    const bd = document.getElementById('extraBreakdown');
+    if (bd) {
+        bd.innerHTML = [
+            { label: '+ Receita IPTV',      value: revenue,  color: '#00cc66' },
+            { label: '− Gastos IPTV (servidores)', value: cost,   color: '#ff6644' },
+            { label: '− Gastos Mensais (fixos)', value: monthly, color: '#ffaa00' },
+            { label: '− Gastos Extras (avulsos)', value: extras,  color: '#ff4444' },
+            { label: '= SALDO LÍQUIDO',        value: saldo,  color: saldo >= 0 ? '#00cc66' : '#ff4444' },
+        ].map(item => `<div class="cost-item"><span style="color:${item.color}">${item.label}</span><span style="color:${item.color};font-weight:700">${fmt(item.value)}</span></div>`).join('');
+    }
+}
+
+async function loadExtras() {
+    // Renderiza extras já carregados (vindo do applyLogoFromServer)
+    calcExtrasTotal();
+    // Busca métricas para preencher os cards de resumo
+    try {
+        const res = await fetch('/report', { credentials: 'include' });
+        const data = await res.json();
+        const revEl     = document.getElementById('ex_revenue');  if (revEl)     revEl.textContent     = fmt(data.revenue || 0);
+        const costEl    = document.getElementById('ex_cost');     if (costEl)    costEl.textContent    = fmt(data.cost || 0);
+        // Gastos mensais fixos (expenseContainer)
+        const expRows   = document.querySelectorAll('#expenseContainer .expense-row');
+        const monthly   = Array.from(expRows).reduce((acc, r) => acc + (Number(r.querySelector('.exp_value')?.value) || 0), 0);
+        const monthlyEl = document.getElementById('ex_monthly'); if (monthlyEl) monthlyEl.textContent = fmt(monthly);
+        _recalcExSaldo();
+    } catch (e) { console.error('Erro ao carregar métricas de extras', e); }
+}
+
+async function saveExtras() {
+    const rows = document.querySelectorAll('#extraContainer .extra-row');
+    const extras = Array.from(rows).map(r => ({
+        name:  r.querySelector('.ext_name')?.value.trim()  || '',
+        value: Number(r.querySelector('.ext_value')?.value) || 0
+    })).filter(e => e.name || e.value > 0);
+    try {
+        const res = await fetch('/auth/preferences', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ extraExpensesJSON: JSON.stringify(extras) })
+        });
+        if (res.ok) showToast('Gastos extras salvos!', '#00cc66');
+        else showToast('Erro ao salvar', '#ff4444');
+    } catch (e) { showToast('Erro de conexão', '#ff4444'); }
 }
 
 async function loadMensalistas() {

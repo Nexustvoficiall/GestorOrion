@@ -47,6 +47,7 @@
     <button class="tab-btn"        data-tab="revendas"   onclick="switchTab('revendas')">&#127978; REVENDAS</button>
     <button class="tab-btn"        data-tab="mensalistas" onclick="switchTab('mensalistas')">&#128181; MENSALISTAS</button>
     <button class="tab-btn"        data-tab="servidores" onclick="switchTab('servidores')">&#128421; SERVIDORES</button>
+    <button class="tab-btn"        data-tab="extras"     onclick="switchTab('extras')">&#128181; GASTOS EXTRAS</button>
     <button class="tab-btn"        data-tab="financeiro" onclick="switchTab('financeiro')">&#128202; FINANCEIRO</button>
     <button class="tab-btn"        data-tab="perfil"    onclick="switchTab('perfil')">&#9881; MEU PERFIL</button>
     <button class="tab-btn admin-tab" id="tabAdmin" data-tab="admin" onclick="switchTab('admin')" style="display:none">&#9873; ADMIN</button>
@@ -264,6 +265,36 @@
             </div>
         </div>
         <div id="serverListUI" class="server-chip-list"></div>
+    </section>
+</div>
+
+<!-- ABA GASTOS EXTRAS -->
+<div id="tab-extras" class="tab-content">
+    <section class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+            <div>
+                <h2>&#128181; GASTOS EXTRAS</h2>
+                <p style="font-size:12px;color:var(--text-muted);margin-top:4px">Adicione gastos di&aacute;rios ou avulsos fora do IPTV (alimenta&ccedil;&atilde;o, transporte, servi&ccedil;os, etc.)</p>
+            </div>
+            <button class="btn-secondary" onclick="addExtraRow()">+ Adicionar Gasto</button>
+        </div>
+        <div id="extraContainer"></div>
+        <div style="margin-top:14px;display:flex;justify-content:flex-end;align-items:center;gap:14px;flex-wrap:wrap">
+            <span style="font-size:13px;color:var(--text-muted);letter-spacing:1px">TOTAL GASTOS EXTRAS:</span>
+            <span id="extraTotal" style="font-size:22px;font-weight:700;color:#ff6644">R$ 0,00</span>
+            <button onclick="saveExtras()">SALVAR GASTOS</button>
+        </div>
+    </section>
+    <section class="metrics" style="margin-top:0">
+        <div class="card big"><h3>RECEITA IPTV</h3><p id="ex_revenue">R$ 0,00</p></div>
+        <div class="card big"><h3>GASTOS IPTV</h3><p id="ex_cost">R$ 0,00</p></div>
+        <div class="card big"><h3>GASTOS EXTRAS</h3><p id="ex_extras">R$ 0,00</p></div>
+        <div class="card big"><h3>GASTOS MENSAIS</h3><p id="ex_monthly">R$ 0,00</p></div>
+        <div class="card big highlight" style="--accent:#00cc66"><h3>SALDO L&Iacute;QUIDO</h3><p id="ex_profit">R$ 0,00</p></div>
+    </section>
+    <section class="panel">
+        <h2>&#128200; RESUMO DE DESPESAS</h2>
+        <div id="extraBreakdown" class="cost-list"></div>
     </section>
 </div>
 

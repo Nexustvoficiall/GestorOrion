@@ -355,7 +355,11 @@ sequelize.sync().then(async () => {
         try {
             await sequelize.query(`ALTER TABLE IF EXISTS "Clients" ADD COLUMN IF NOT EXISTS "resellerId" INTEGER;`);
             await sequelize.query(`ALTER TABLE IF EXISTS "Resellers" ADD COLUMN IF NOT EXISTS "ownerId" INTEGER;`);
-        } catch (_) { /* coluna já existe ou SQLite — ignorar */ }
+            await sequelize.query(`ALTER TABLE IF EXISTS "Clients" ADD COLUMN IF NOT EXISTS "userId" INTEGER;`);
+        } catch (_) { /* coluna já existe — ignorar */ }
+    } else {
+        // SQLite: sintaxe sem IF NOT EXISTS
+        try { await sequelize.query(`ALTER TABLE "Clients" ADD COLUMN "userId" INTEGER`); } catch (_) {}
     }
     // Migra role 'reseller' → 'personal' (renomeio de perfil) — roda em PG e SQLite
     try { await sequelize.query(`UPDATE "Users" SET "role" = 'personal' WHERE "role" = 'reseller'`); } catch (_) {}

@@ -3,14 +3,14 @@ const { Op } = require('sequelize');
 
 /**
  * Retorna métricas financeiras completas de todos revendedores do tenant
- * Se ownerId for informado, filtra apenas dados do revendedor dono
+ * Se userId for informado, filtra apenas dados do usuário personal (isolamento por User.id)
  */
-async function getFullFinancials(tenantId = null, ownerId = null) {
+async function getFullFinancials(tenantId = null, userId = null) {
     const where = tenantId ? { tenantId } : {};
-    if (ownerId) where.ownerId = ownerId;
+    if (userId) where.ownerId = userId;
 
     const clientWhere = tenantId ? { tenantId } : {};
-    if (ownerId) clientWhere.resellerId = ownerId;
+    if (userId) clientWhere.userId = userId;
 
     const resellers = await Reseller.findAll({
         where,

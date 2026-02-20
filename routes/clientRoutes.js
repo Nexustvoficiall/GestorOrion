@@ -6,5 +6,6 @@ router.get('/', controller.list);
 router.put('/:id', controller.update);
 router.patch('/:id/renew', controller.renew);
 router.patch('/:id/status', controller.toggleStatus);
+router.delete('/:id', controller.deleteClient);
 
 module.exports = router;

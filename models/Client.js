@@ -10,6 +10,10 @@ const Client = sequelize.define('Client', {
         type: DataTypes.INTEGER,
         allowNull: true  // null = criado pelo admin direto
     },
+    userId: {
+        type: DataTypes.INTEGER,
+        allowNull: true  // id do user personal que criou (isolamento exclusivo)
+    },
     name: DataTypes.STRING,
     username: DataTypes.STRING,
     password: DataTypes.STRING,

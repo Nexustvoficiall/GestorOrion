@@ -26,8 +26,9 @@ router.post('/reset-by-token',  ctrl.resetByToken);
 /* Admin gera link de reset para um usuário */
 router.post('/users/:userId/reset-token', requireAuth, requireAdmin, enforceTenant, ctrl.generateResetToken);
 
-/* Apenas admin pode criar/listar usuários */
+/* Apenas admin pode criar/listar/excluir usuários */
 router.post('/users', requireAuth, requireAdmin, enforceTenant, ctrl.createReseller);
 router.get('/users',  requireAuth, requireAdmin, ctrl.listUsers);
+router.delete('/users/:userId', requireAuth, requireAdmin, enforceTenant, ctrl.deleteUser);
 
 module.exports = router;

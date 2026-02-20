@@ -276,19 +276,8 @@ async function loadUserInfo() {
             const tab = document.getElementById('tabAdmin');
             if (tab) tab.style.display = '';
         }
-        // Revendedor: acessa Financeiro mas com dados filtrados só pelos seus
-        if (_isReseller) {
-            // Esconder seções do painel principal que são admin-only (ranking geral e lista de custos)
-            ['resellerRanking','costList'].forEach(id => {
-                const el = document.getElementById(id)?.closest('section.panel');
-                if (el) el.style.display = 'none';
-            });
-            // Esconder cards de métricas globais do painel (não do financeiro)
-            ['m_resellers','m_revenue','m_cost','m_profit','m_margin','m_projected'].forEach(id => {
-                const el = document.getElementById(id)?.closest('.card');
-                if (el) el.style.display = 'none';
-            });
-        }
+        // Personal: painel completo com dados isolados — não esconder nenhum card
+        // (backend já filtra pelos dados exclusivos do usuário)
         // Configura seletor de perfil de usuário
         setupUserRoleSelector();
         // Mostra onboarding no primeiro acesso (não mostra para master)
@@ -494,7 +483,10 @@ async function loadUsers() {
                 <td>${u.resellerId || '—'}</td>
                 <td>${planLabel}</td>
                 <td>${expDate} ${expBadge}</td>
-                <td><button class="btn-sm" style="font-size:10px" onclick="generateUserResetToken(${u.id}, '${u.username.replace(/'/g,'')}')">&#128273; Reset Senha</button></td>
+                <td style="white-space:nowrap">
+                    <button class="btn-sm" style="font-size:10px" onclick="generateUserResetToken(${u.id}, '${u.username.replace(/'/g,'')}')">&#128273; Senha</button>
+                    <button class="btn-sm" style="font-size:10px;background:#c0392b;margin-left:4px" onclick="deleteUser(${u.id}, '${u.username.replace(/'/g,'')}')">&#128465; Excluir</button>
+                </td>
             </tr>`;
         }).join('');
     } catch (e) {}
@@ -505,6 +497,21 @@ function closeOnboarding() {
     document.getElementById('modalOnboarding').style.display = 'none';
     fetch('/auth/first-login-done', { method: 'POST', credentials: 'include' }).catch(() => {});
 }
+
+/* ===== EXCLUIR USUÁRIO ===== */
+async function deleteUser(userId, username) {
+    if (!confirm('Excluir o acesso de "' + username + '"?\nEssa ação não pode ser desfeita.')) return;
+    try {
+        const res = await fetch('/auth/users/' + userId, {
+            method: 'DELETE', credentials: 'include'
+        });
+        const data = await res.json();
+        if (!res.ok) { alert('\u274c ' + (data.error || 'Erro')); return; }
+        showFlash('\u2705 Acesso de "' + username + '" excluído.');
+        loadUsers();
+    } catch (e) { alert('\u274c Erro ao excluir.'); }
+}
+
 
 /* ===== RESET SENHA DE USUÁRIO ===== */
 let _resetLinkUrl = '';
@@ -600,6 +607,7 @@ async function loadClients() {
                 <td class="td-actions">
                     <button class="btn-action btn-edit" onclick="openClientModal(${c.id})" title="Ver detalhes">&#128065;</button>
                     <button class="btn-action ${isAtivo ? 'btn-danger' : 'btn-success'}" onclick="toggleClientStatus(${c.id}, this)" title="${isAtivo ? 'Desativar' : 'Ativar'}">${isAtivo ? '&#10006;' : '&#10003;'}</button>
+                    <button class="btn-action btn-danger" onclick="deleteClientConfirm(${c.id}, '${(c.name||'').replace(/'/g,'')}')" title="Excluir">&#128465;</button>
                 </td>
             </tr>`;
         });
@@ -613,6 +621,17 @@ async function toggleClientStatus(id, btn) {
         loadClients();
         loadMetrics();
     } catch (e) { alert('\u274c Erro ao atualizar status.'); }
+}
+
+async function deleteClientConfirm(id, name) {
+    if (!confirm('Excluir o cliente "' + name + '"?\nEssa ação não pode ser desfeita.')) return;
+    try {
+        const res = await fetch('/clients/' + id, { method: 'DELETE', credentials: 'include' });
+        if (!res.ok) { const d = await res.json(); alert('\u274c ' + (d.error || 'Erro')); return; }
+        showFlash('\u2705 Cliente "' + name + '" excluído.');
+        loadClients();
+        loadMetrics();
+    } catch (e) { alert('\u274c Erro ao excluir cliente.'); }
 }
 
 let _currentClient = null;

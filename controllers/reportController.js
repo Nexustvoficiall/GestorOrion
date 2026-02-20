@@ -5,9 +5,8 @@ exports.summary = async (req, res) => {
         const tenantId = req.tenantId;
         if (!tenantId) return res.status(403).json({ error: 'Tenant não identificado' });
         const sessionUser = req.session?.user;
-        const ownerId = sessionUser?.role === 'personal' && sessionUser?.resellerId
-            ? sessionUser.resellerId : null;
-        const data = await getFullFinancials(tenantId, ownerId);
+        const userId = sessionUser?.role === 'personal' ? sessionUser.id : null;
+        const data = await getFullFinancials(tenantId, userId);
         res.json(data);
     } catch (err) {
         console.error(err);

@@ -3,10 +3,16 @@ const dayjs = require('dayjs');
 const { audit } = require('../middlewares/authMiddleware');
 const { Op } = require('sequelize');
 
+/* Helper: para personal, filtra por userId = sessionUser.id (isolamento exclusivo por usuário) */
+function personalWhere(sessionUser, base = {}) {
+    if (sessionUser?.role === 'personal') {
+        return { ...base, userId: sessionUser.id };
+    }
+    return base;
+}
+
 exports.create = async (req, res) => {
-
     const { planType } = req.body;
-
     const startDate = dayjs();
     const dueDate = startDate.add(Number(planType), 'day');
     const tenantId = req.tenantId;
@@ -14,15 +20,16 @@ exports.create = async (req, res) => {
 
     if (!tenantId) return res.status(403).json({ error: 'Tenant não identificado' });
 
-    // Personal só pode criar clientes vinculados a si mesmo
-    const resellerId = sessionUser?.role === 'personal' && sessionUser?.resellerId
-        ? sessionUser.resellerId
-        : (req.body.resellerId || null);
+    // Para personal: userId = id único do usuário logado (isolamento exclusivo)
+    const userId = sessionUser?.role === 'personal' ? sessionUser.id : null;
+    // resellerId fica nulo para personal (userId já garante isolamento)
+    const resellerId = sessionUser?.role === 'personal' ? null : (req.body.resellerId || null);
 
     const client = await Client.create({
         ...req.body,
         tenantId,
         resellerId,
+        userId,
         startDate: startDate.toDate(),
         dueDate: dueDate.toDate()
     });
@@ -36,11 +43,8 @@ exports.list = async (req, res) => {
     const sessionUser = req.session?.user;
     if (!tenantId) return res.status(403).json({ error: 'Tenant não identificado' });
 
-    // Personal vê apenas seus próprios clientes
-    const where = { tenantId };
-    if (sessionUser?.role === 'personal' && sessionUser?.resellerId) {
-        where.resellerId = sessionUser.resellerId;
-    }
+    // Personal vê apenas seus próprios clientes (por userId exclusivo)
+    const where = personalWhere(sessionUser, { tenantId });
 
     const clients = await Client.findAll({ where, order: [['createdAt', 'DESC']] });
     res.json(clients);
@@ -49,10 +53,7 @@ exports.list = async (req, res) => {
 exports.update = async (req, res) => {
     try {
         const sessionUser = req.session?.user;
-        const where = { id: req.params.id, tenantId: req.tenantId };
-        if (sessionUser?.role === 'personal' && sessionUser?.resellerId) {
-            where.resellerId = sessionUser.resellerId;
-        }
+        const where = personalWhere(sessionUser, { id: req.params.id, tenantId: req.tenantId });
         const client = await Client.findOne({ where });
         if (!client) return res.status(404).json({ error: 'Cliente não encontrado' });
         const { name, username, password, whatsapp, server, app, planType, planValue, costPerActive } = req.body;
@@ -67,10 +68,7 @@ exports.update = async (req, res) => {
 exports.renew = async (req, res) => {
     try {
         const sessionUser = req.session?.user;
-        const where = { id: req.params.id, tenantId: req.tenantId };
-        if (sessionUser?.role === 'personal' && sessionUser?.resellerId) {
-            where.resellerId = sessionUser.resellerId;
-        }
+        const where = personalWhere(sessionUser, { id: req.params.id, tenantId: req.tenantId });
         const client = await Client.findOne({ where });
         if (!client) return res.status(404).json({ error: 'Cliente não encontrado' });
         const days = Number(req.body.planType || client.planType) || 30;
@@ -89,10 +87,7 @@ exports.renew = async (req, res) => {
 exports.toggleStatus = async (req, res) => {
     try {
         const sessionUser = req.session?.user;
-        const where = { id: req.params.id, tenantId: req.tenantId };
-        if (sessionUser?.role === 'personal' && sessionUser?.resellerId) {
-            where.resellerId = sessionUser.resellerId;
-        }
+        const where = personalWhere(sessionUser, { id: req.params.id, tenantId: req.tenantId });
         const client = await Client.findOne({ where });
         if (!client) return res.status(404).json({ error: 'Cliente não encontrado' });
         const newStatus = client.status === 'ATIVO' ? 'INATIVO' : 'ATIVO';
@@ -104,3 +99,16 @@ exports.toggleStatus = async (req, res) => {
     }
 };
 
+exports.deleteClient = async (req, res) => {
+    try {
+        const sessionUser = req.session?.user;
+        const where = personalWhere(sessionUser, { id: req.params.id, tenantId: req.tenantId });
+        const client = await Client.findOne({ where });
+        if (!client) return res.status(404).json({ error: 'Cliente não encontrado' });
+        await audit(req, 'DELETE_CLIENT', 'Client', client.id, { name: client.name });
+        await client.destroy();
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Erro ao excluir cliente' });
+    }
+};

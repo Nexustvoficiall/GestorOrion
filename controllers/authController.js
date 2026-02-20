@@ -223,3 +223,27 @@ exports.markFirstLoginDone = async (req, res) => {
         res.status(500).json({ error: 'Erro interno' });
     }
 };
+
+/* EXCLUIR USUÁRIO (master pode excluir qualquer um; admin só do próprio tenant) */
+exports.deleteUser = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const callerRole = req.session?.user?.role;
+        const tenantId   = req.tenantId || req.session?.user?.tenantId;
+        // Impede auto-exclusão
+        if (Number(userId) === req.session?.user?.id) {
+            return res.status(400).json({ error: 'Você não pode excluir seu próprio acesso' });
+        }
+        const where = callerRole === 'master' ? { id: userId } : { id: userId, tenantId };
+        const user = await User.findOne({ where });
+        if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+        // Impede excluir outro master
+        if (user.role === 'master') return res.status(403).json({ error: 'Não é possível excluir um master' });
+        await user.destroy();
+        await audit(req, 'DELETE_USER', 'User', Number(userId), { username: user.username });
+        res.json({ ok: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Erro ao excluir usuário' });
+    }
+};

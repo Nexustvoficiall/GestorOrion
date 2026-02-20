@@ -3,16 +3,21 @@ const { Op } = require('sequelize');
 
 /**
  * Retorna métricas financeiras completas de todos revendedores do tenant
+ * Se ownerId for informado, filtra apenas dados do revendedor dono
  */
-async function getFullFinancials(tenantId = null) {
+async function getFullFinancials(tenantId = null, ownerId = null) {
     const where = tenantId ? { tenantId } : {};
+    if (ownerId) where.ownerId = ownerId;
+
+    const clientWhere = tenantId ? { tenantId } : {};
+    if (ownerId) clientWhere.resellerId = ownerId;
 
     const resellers = await Reseller.findAll({
         where,
         include: [{ model: ResellerServer, as: 'servers' }]
     });
 
-    const totalClients = await Client.count({ where });
+    const totalClients = await Client.count({ where: clientWhere });
 
     let totalRevenue = 0;
     let totalCost    = 0;
@@ -65,7 +70,7 @@ async function getFullFinancials(tenantId = null) {
     const mostProfitable = [...serverEntries].sort((a, b) => b.profit - a.profit)[0] || null;
 
     // Projeção mensal (baseada em valor contratado de clientes diretos)
-    const clients = await Client.findAll({ where });
+    const clients = await Client.findAll({ where: clientWhere });
     let projectedRevenue = 0;
     clients.forEach(c => {
         if (c.status === 'ATIVO' && c.planValue && c.planType) {

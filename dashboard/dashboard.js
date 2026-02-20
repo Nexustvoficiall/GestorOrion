@@ -276,17 +276,14 @@ async function loadUserInfo() {
             const tab = document.getElementById('tabAdmin');
             if (tab) tab.style.display = '';
         }
-        // Revendedor: esconder apenas financeiro e seções admin-only
+        // Revendedor: acessa Financeiro mas com dados filtrados só pelos seus
         if (_isReseller) {
-            // Esconde só a aba Financeiro (revendas e servidores estão liberadas)
-            const tabFin = document.querySelector('[data-tab="financeiro"]');
-            if (tabFin) tabFin.style.display = 'none';
-            // Esconder seções do painel que são admin-only
+            // Esconder seções do painel principal que são admin-only (ranking geral e lista de custos)
             ['resellerRanking','costList'].forEach(id => {
                 const el = document.getElementById(id)?.closest('section.panel');
                 if (el) el.style.display = 'none';
             });
-            // Simplificar cards do painel — esconder métricas financeiras
+            // Esconder cards de métricas globais do painel (não do financeiro)
             ['m_resellers','m_revenue','m_cost','m_profit','m_margin','m_projected'].forEach(id => {
                 const el = document.getElementById(id)?.closest('.card');
                 if (el) el.style.display = 'none';
@@ -1177,10 +1174,8 @@ window.onload = async () => {
     loadClients();
     loadExpiringSoon();
     loadLicenseStatus();
-    if (!_isReseller) {
-        loadMetrics();
-    }
-    // Revendas e Servidores disponíveis para todos (filtrados por ownerId no backend)
+    // Financeiro disponível para todos — dados filtrados por ownerId no backend
+    loadMetrics();
     addServer();
     loadResellers();
 };

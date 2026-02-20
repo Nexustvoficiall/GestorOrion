@@ -1124,21 +1124,27 @@ async function loadExpiringSoon() {
             const diff = Math.ceil((d - today) / 86400000);
             return `<div class="alert-item"><span class="alert-name">${c.name}</span><span class="alert-days ${diff<=2?'urgent':''}">&#9200; ${diff===0?'HOJE':diff+'d'}</span></div>`;
         }).join('') : '<span class="empty-alert">Nenhum nos pr\u00f3ximos 7 dias</span>';
-        /* Revendas */
+        /* Revendas — acerto por servidor */
         const rr = await fetch('/resellers', { credentials: 'include' });
         const resellers = await rr.json();
         const elR = document.getElementById('alertResellers');
-        const nearR = resellers.filter(r => {
-            if (!r.settleDate) return false;
-            const d = new Date(r.settleDate + 'T00:00:00');
-            return d >= today && d <= limit;
-        }).sort((a,b) => new Date(a.settleDate) - new Date(b.settleDate));
+        const nearR = [];
+        resellers.forEach(r => {
+            (r.servers || []).forEach(s => {
+                if (!s.settleDate) return;
+                const d = new Date(s.settleDate + 'T00:00:00');
+                if (d >= today && d <= limit) {
+                    nearR.push({ name: r.name, server: s.server, settleDate: s.settleDate, paymentStatus: r.paymentStatus });
+                }
+            });
+        });
+        nearR.sort((a, b) => new Date(a.settleDate) - new Date(b.settleDate));
         elR.innerHTML = nearR.length ? nearR.map(r => {
             const d = new Date(r.settleDate + 'T00:00:00');
             const diff = Math.ceil((d - today) / 86400000);
             const pago = r.paymentStatus === 'PAGO';
             return `<div class="alert-item">
-                <span class="alert-name">${r.name}</span>
+                <span class="alert-name">${r.name} <small style="color:#666">(${r.server})</small></span>
                 <span class="badge ${pago?'badge-pago':'badge-pendente'} badge-sm">${r.paymentStatus}</span>
                 <span class="alert-days ${diff<=2&&!pago?'urgent':''}">&#9200; ${diff===0?'HOJE':diff+'d'}</span>
             </div>`;

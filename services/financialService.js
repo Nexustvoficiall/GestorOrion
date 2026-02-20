@@ -6,7 +6,7 @@ const { Op } = require('sequelize');
  * Se userId for informado, filtra apenas dados do usuário (isolamento por User.id)
  * isMaster = true: inclui também registros legados sem ownerId/userId (compat. retroativa)
  */
-async function getFullFinancials(tenantId = null, userId = null, isMaster = false) {
+async function getFullFinancials(tenantId = null, userId = null, isMaster = false, period = null) {
     const where = tenantId ? { tenantId } : {};
     if (userId) {
         if (isMaster) {
@@ -23,6 +23,14 @@ async function getFullFinancials(tenantId = null, userId = null, isMaster = fals
         } else {
             clientWhere.userId = userId;
         }
+    }
+
+    // Filtro por período: clientes com dueDate no mês selecionado
+    if (period && period.month && period.year) {
+        const { month, year } = period;
+        const startOfMonth = new Date(year, month - 1, 1);
+        const endOfMonth   = new Date(year, month,     0, 23, 59, 59);
+        clientWhere.dueDate = { [Op.between]: [startOfMonth, endOfMonth] };
     }
 
     const resellers = await Reseller.findAll({

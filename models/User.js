@@ -72,6 +72,11 @@ const User = sequelize.define('User', {
     planPricesJSON: {
         type: DataTypes.TEXT,
         allowNull: true
+    },
+    // Saldo em caixa por período: JSON { "2026-01": 1000, "2026-02": 500 }
+    saldoCaixaJSON: {
+        type: DataTypes.TEXT,
+        allowNull: true
     }
 });
 

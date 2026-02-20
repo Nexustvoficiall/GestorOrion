@@ -61,11 +61,8 @@
     <section class="metrics">
         <div class="card big"><h3>CLIENTES</h3><p id="m_clients">0</p></div>
         <div class="card big"><h3>REVENDAS</h3><p id="m_resellers">0</p></div>
-        <div class="card big"><h3>RECEITA</h3><p id="m_revenue">R$ 0,00</p></div>
-        <div class="card big"><h3>GASTOS TOTAIS</h3><p id="m_cost">R$ 0,00</p></div>
-        <div class="card big highlight"><h3>LUCRO L&Iacute;QUIDO</h3><p id="m_profit">R$ 0,00</p></div>
         <div class="card big"><h3>MARGEM</h3><p id="m_margin">0%</p></div>
-        <div class="card big"><h3>PROJE&Ccedil;&Atilde;O MENSAL</h3><p id="m_projected">R$ 0,00</p></div>
+        <div class="card big"><h3>PROJEÇÃO MENSAL</h3><p id="m_projected">R$ 0,00</p></div>
     </section>
     <section class="panel">
         <h2>GASTOS POR SERVIDOR</h2>
@@ -226,12 +223,6 @@
             <button onclick="saveExpenses()">SALVAR GASTOS</button>
         </div>
     </section>
-    <section class="metrics">
-        <div class="card big"><h3>MENSALISTAS</h3><p id="mm_total">0</p></div>
-        <div class="card big"><h3>RECEITA</h3><p id="mm_revenue">R$ 0,00</p></div>
-        <div class="card big"><h3>GASTOS</h3><p id="mm_expenses_card">R$ 0,00</p></div>
-        <div class="card big highlight"><h3>LUCRO</h3><p id="mm_profit">R$ 0,00</p></div>
-    </section>
     <section class="panel">
         <div class="panel-header">
             <h2>TODOS OS MENSALISTAS</h2>
@@ -285,52 +276,102 @@
             <button onclick="saveExtras()">SALVAR GASTOS</button>
         </div>
     </section>
-    <section class="metrics" style="margin-top:0">
-        <div class="card big"><h3>RECEITA IPTV</h3><p id="ex_revenue">R$ 0,00</p></div>
-        <div class="card big"><h3>GASTOS IPTV</h3><p id="ex_cost">R$ 0,00</p></div>
-        <div class="card big"><h3>GASTOS EXTRAS</h3><p id="ex_extras">R$ 0,00</p></div>
-        <div class="card big"><h3>GASTOS MENSAIS</h3><p id="ex_monthly">R$ 0,00</p></div>
-        <div class="card big highlight" style="--accent:#00cc66"><h3>SALDO L&Iacute;QUIDO</h3><p id="ex_profit">R$ 0,00</p></div>
-    </section>
-    <section class="panel">
-        <h2>&#128200; RESUMO DE DESPESAS</h2>
-        <div id="extraBreakdown" class="cost-list"></div>
-    </section>
 </div>
 
 <!-- ABA FINANCEIRO -->
 <div id="tab-financeiro" class="tab-content">
-    <section class="metrics">
-        <div class="card big"><h3>RECEITA TOTAL</h3><p id="f_revenue">R$ 0,00</p></div>
-        <div class="card big"><h3>CUSTO TOTAL</h3><p id="f_cost">R$ 0,00</p></div>
-        <div class="card big highlight"><h3>LUCRO L&Iacute;QUIDO</h3><p id="f_profit">R$ 0,00</p></div>
+    <!-- Filtro por período -->
+    <section class="panel" style="padding:14px 20px">
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+            <h2 style="margin:0;font-size:14px;letter-spacing:2px">&#128200; PERÍODO</h2>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <select id="fin_month" style="min-width:110px">
+                    <option value="1">Janeiro</option>
+                    <option value="2">Fevereiro</option>
+                    <option value="3">Março</option>
+                    <option value="4">Abril</option>
+                    <option value="5">Maio</option>
+                    <option value="6">Junho</option>
+                    <option value="7">Julho</option>
+                    <option value="8">Agosto</option>
+                    <option value="9">Setembro</option>
+                    <option value="10">Outubro</option>
+                    <option value="11">Novembro</option>
+                    <option value="12">Dezembro</option>
+                </select>
+                <select id="fin_year" style="min-width:80px"></select>
+                <button onclick="loadFinanceiro()" style="padding:6px 18px;font-size:11px">&#128269; APLICAR</button>
+            </div>
+            <span id="fin_period_label" style="font-size:11px;color:var(--text-muted);letter-spacing:1px;margin-left:auto"></span>
+        </div>
     </section>
+
+    <!-- Caixa Inicial -->
     <section class="panel">
-        <h2>RESUMO FINANCEIRO</h2>
+        <h2>&#128176; CAIXA INICIAL DO MÊS</h2>
+        <p style="font-size:12px;color:var(--text-muted);margin:6px 0 14px">Informe o saldo em caixa que você inicia o mês selecionado. Salvo automaticamente por período.</p>
+        <div class="form-row" style="align-items:flex-end">
+            <div class="field" style="max-width:260px">
+                <label>Saldo Inicial (R$)</label>
+                <input id="fin_caixa" type="number" placeholder="0.00" min="0" step="0.01" oninput="previewSaldo()">
+            </div>
+            <div class="field btn-field"><button onclick="saveCaixa()">SALVAR CAIXA</button></div>
+        </div>
+    </section>
+
+    <!-- Cards de resumo completo -->
+    <section class="metrics">
+        <div class="card big" style="border-color:#4499ff55"><h3>CAIXA INICIAL</h3><p id="fin_caixa_card" style="color:#4499ff">R$ 0,00</p></div>
+        <div class="card big"><h3>RECEITA IPTV</h3><p id="f_revenue">R$ 0,00</p></div>
+        <div class="card big"><h3>GASTOS IPTV</h3><p id="f_cost">R$ 0,00</p></div>
+        <div class="card big"><h3>GASTOS MENSAIS</h3><p id="fin_monthly">R$ 0,00</p></div>
+        <div class="card big"><h3>GASTOS EXTRAS</h3><p id="fin_extras">R$ 0,00</p></div>
+        <div class="card big highlight"><h3>SALDO LÍQUIDO</h3><p id="f_profit">R$ 0,00</p></div>
+    </section>
+
+    <!-- Breakdown completo -->
+    <section class="panel">
+        <h2>&#128203; RESUMO COMPLETO</h2>
+        <div id="fin_breakdown" class="cost-list"></div>
+    </section>
+
+    <!-- Gráfico -->
+    <section class="panel">
+        <h2>GRÁFICO FINANCEIRO</h2>
         <div class="chart-wrap"><canvas id="financeChart"></canvas></div>
     </section>
-    <!-- NOVO: Balanço Mensal por Servidor -->
+
+    <!-- Balanço Mensal por Servidor -->
     <section class="panel">
-        <h2>&#128184; BALANÇO MENSAL POR SERVIDOR</h2>
-        <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px">Receita gerada, custo a pagar e lucro de cada servidor no mês atual</p>
+        <h2>&#128184; BALANÇO POR SERVIDOR</h2>
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px">Receita gerada, custo a pagar e lucro de cada servidor no período selecionado</p>
         <div class="table-wrap">
         <table id="serverBalanceTable">
-            <thead>
-                <tr>
-                    <th>SERVIDOR</th>
-                    <th style="text-align:center">ATIVOS</th>
-                    <th style="text-align:right">RECEITA (GANHO)</th>
-                    <th style="text-align:right">CUSTO (A PAGAR)</th>
-                    <th style="text-align:right">LUCRO</th>
-                    <th style="text-align:center">MARGEM</th>
-                </tr>
-            </thead>
-            <tbody id="serverBalanceBody">
-                <tr><td colspan="6" style="text-align:center;color:#555">Carregando...</td></tr>
-            </tbody>
+            <thead><tr>
+                <th>SERVIDOR</th>
+                <th style="text-align:center">ATIVOS</th>
+                <th style="text-align:right">RECEITA</th>
+                <th style="text-align:right">CUSTO</th>
+                <th style="text-align:right">LUCRO</th>
+                <th style="text-align:center">MARGEM</th>
+            </tr></thead>
+            <tbody id="serverBalanceBody"><tr><td colspan="6" style="text-align:center;color:#555">Carregando...</td></tr></tbody>
         </table>
         </div>
     </section>
+
+    <!-- Gastos Mensais breakdown -->
+    <section class="panel">
+        <h2>&#128176; GASTOS MENSAIS FIXOS</h2>
+        <div id="fin_monthly_breakdown" class="cost-list"><span style="color:#555;font-size:12px">Carregando...</span></div>
+    </section>
+
+    <!-- Gastos Extras breakdown -->
+    <section class="panel">
+        <h2>&#128181; GASTOS EXTRAS (AVULSOS)</h2>
+        <div id="fin_extras_breakdown" class="cost-list"><span style="color:#555;font-size:12px">Carregando...</span></div>
+    </section>
+
     <section class="panel">
         <h2>GASTOS POR SERVIDOR</h2>
         <div id="costListFin" class="cost-list"></div>

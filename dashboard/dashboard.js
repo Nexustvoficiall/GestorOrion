@@ -48,6 +48,9 @@ const DEFAULT_LOGO = '/dashboard/assets/logo.png';
 
 // Chave do localStorage isolada por usuário (evita vazar logo entre contas)
 let _userId = null;
+let _cachedExpenses       = [];
+let _cachedExtras         = [];
+let _cachedSaldoCaixaJSON = {};
 function logoKey() { return 'nexus_logo_' + (_userId || 'anon'); }
 
 function loadProfile() {
@@ -110,11 +113,15 @@ async function applyLogoFromServer() {
         }
         // Carrega gastos mensais salvos
         if (p.expensesJSON) {
-            try { renderExpenses(JSON.parse(p.expensesJSON)); } catch (_) {}
+            try { const arr = JSON.parse(p.expensesJSON); _cachedExpenses = arr; renderExpenses(arr); } catch (_) {}
         }
         // Carrega gastos extras salvos
         if (p.extraExpensesJSON) {
-            try { renderExtras(JSON.parse(p.extraExpensesJSON)); } catch (_) {}
+            try { const arr = JSON.parse(p.extraExpensesJSON); _cachedExtras = arr; renderExtras(arr); } catch (_) {}
+        }
+        // Carrega saldo em caixa por mês
+        if (p.saldoCaixaJSON) {
+            try { _cachedSaldoCaixaJSON = JSON.parse(p.saldoCaixaJSON); } catch (_) {}
         }
     } catch (e) { /* falha silenciosa */ }
 }
@@ -215,7 +222,7 @@ function switchTab(name) {
     if (content) content.classList.add('active');
     const btn = document.querySelector('[data-tab="' + name + '"]');
     if (btn) btn.classList.add('active');
-    if (name === 'financeiro') loadMetrics();
+    if (name === 'financeiro') loadFinanceiro();
     if (name === 'extras') loadExtras();
     if (name === 'perfil') loadMyRenewal();
     if (name === 'admin') { loadResellerSelect(); loadUsers(); loadLicenseInfo(); updatePlanPreview('6m'); loadRenewalRequests(); loadPlanPrices(); }
@@ -1362,6 +1369,7 @@ function addExpenseRow(data) {
 }
 
 function renderExpenses(arr) {
+    _cachedExpenses = arr || [];
     const container = document.getElementById('expenseContainer');
     if (!container) return;
     container.innerHTML = '';
@@ -1378,15 +1386,6 @@ function calcExpenseTotal() {
     }, 0);
     const el = document.getElementById('expenseTotal');
     if (el) el.textContent = fmt(total);
-    // Atualiza cards de mensalistas se disponíveis
-    const profEl = document.getElementById('mm_profit');
-    const revEl  = document.getElementById('mm_revenue');
-    const expEl  = document.getElementById('mm_expenses_card');
-    if (expEl) expEl.textContent = fmt(total);
-    if (profEl && revEl) {
-        const rev = parseFloat(revEl.textContent.replace('R$ ', '').replace(',', '.')) || 0;
-        profEl.textContent = fmt(rev - total);
-    }
 }
 
 /* ===== GASTOS EXTRAS ===== */
@@ -1413,6 +1412,7 @@ function addExtraRow(data) {
 }
 
 function renderExtras(arr) {
+    _cachedExtras = arr || [];
     const container = document.getElementById('extraContainer');
     if (!container) return;
     container.innerHTML = '';
@@ -1428,57 +1428,12 @@ function calcExtrasTotal() {
     }, 0);
     const el = document.getElementById('extraTotal');
     if (el) el.textContent = fmt(total);
-    // Atualiza card de gastos extras no resumo
-    const exEl = document.getElementById('ex_extras');
-    if (exEl) exEl.textContent = fmt(total);
-    // Recalcula saldo líquido se tivermos os outros valores
-    _recalcExSaldo();
 }
 
-function _recalcExSaldo() {
-    const parseCard = id => {
-        const el = document.getElementById(id);
-        if (!el) return 0;
-        return parseFloat(el.textContent.replace('R$','').replace(/\./g,'').replace(',','.').trim()) || 0;
-    };
-    const revenue  = parseCard('ex_revenue');
-    const cost     = parseCard('ex_cost');
-    const extras   = parseCard('ex_extras');
-    const monthly  = parseCard('ex_monthly');
-    const saldo    = revenue - cost - extras - monthly;
-    const profEl   = document.getElementById('ex_profit');
-    if (profEl) {
-        profEl.textContent = fmt(saldo);
-        profEl.style.color = saldo >= 0 ? '#00cc66' : '#ff4444';
-    }
-    // Atualiza breakdown
-    const bd = document.getElementById('extraBreakdown');
-    if (bd) {
-        bd.innerHTML = [
-            { label: '+ Receita IPTV',      value: revenue,  color: '#00cc66' },
-            { label: '− Gastos IPTV (servidores)', value: cost,   color: '#ff6644' },
-            { label: '− Gastos Mensais (fixos)', value: monthly, color: '#ffaa00' },
-            { label: '− Gastos Extras (avulsos)', value: extras,  color: '#ff4444' },
-            { label: '= SALDO LÍQUIDO',        value: saldo,  color: saldo >= 0 ? '#00cc66' : '#ff4444' },
-        ].map(item => `<div class="cost-item"><span style="color:${item.color}">${item.label}</span><span style="color:${item.color};font-weight:700">${fmt(item.value)}</span></div>`).join('');
-    }
-}
 
 async function loadExtras() {
     // Renderiza extras já carregados (vindo do applyLogoFromServer)
     calcExtrasTotal();
-    // Busca métricas para preencher os cards de resumo
-    try {
-        const res = await fetch('/report', { credentials: 'include' });
-        const data = await res.json();
-        const revEl     = document.getElementById('ex_revenue');  if (revEl)     revEl.textContent     = fmt(data.revenue || 0);
-        const costEl    = document.getElementById('ex_cost');     if (costEl)    costEl.textContent    = fmt(data.cost || 0);
-        // Gastos mensais fixos (expenseContainer)
-        const expRows   = document.querySelectorAll('#expenseContainer .expense-row');
-        const monthly   = Array.from(expRows).reduce((acc, r) => acc + (Number(r.querySelector('.exp_value')?.value) || 0), 0);
-        const monthlyEl = document.getElementById('ex_monthly'); if (monthlyEl) monthlyEl.textContent = fmt(monthly);
-        _recalcExSaldo();
-    } catch (e) { console.error('Erro ao carregar métricas de extras', e); }
 }
 
 async function saveExtras() {
@@ -1570,14 +1525,6 @@ async function loadMensalistas() {
             });
         }
 
-        // Atualiza cards de resumo — gastos calculados das linhas dinâmicas
-        const expRows = document.querySelectorAll('#expenseContainer .expense-row');
-        const expenses = Array.from(expRows).reduce((acc, r) => acc + (Number(r.querySelector('.exp_value')?.value) || 0), 0);
-        const totalEl = document.getElementById('mm_total');        if (totalEl) totalEl.textContent = data.length;
-        const revEl   = document.getElementById('mm_revenue');      if (revEl)   revEl.textContent   = fmt(totalRevenue);
-        const expEl   = document.getElementById('mm_expenses_card');if (expEl)   expEl.textContent   = fmt(expenses);
-        const profEl  = document.getElementById('mm_profit');       if (profEl)  profEl.textContent  = fmt(totalRevenue - expenses);
-        const expTotalEl = document.getElementById('expenseTotal');  if (expTotalEl) expTotalEl.textContent = fmt(expenses);
     } catch (e) { console.error('Erro ao carregar mensalistas', e); }
 }
 
@@ -1588,22 +1535,15 @@ async function loadMetrics() {
     try {
         const res = await fetch('/report', { credentials: 'include' });
         const data = await res.json();
-        ['m_clients','f_clients'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = data.totalClients || 0; });
-        ['m_resellers','f_resellers'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = data.totalResellers || 0; });
-        ['m_revenue','f_revenue'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = fmt(data.revenue); });
-        ['m_cost','f_cost'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = fmt(data.cost); });
-        ['m_profit','f_profit'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = fmt(data.profit); });
+        const el = id => document.getElementById(id);
+        if (el('m_clients'))   el('m_clients').textContent   = data.totalClients   || 0;
+        if (el('m_resellers')) el('m_resellers').textContent = data.totalResellers  || 0;
+        if (el('m_margin'))    el('m_margin').textContent    = (data.margin || 0) + '%';
+        if (el('m_projected')) el('m_projected').textContent = fmt(data.projectedMonthly);
 
-        // Novas métricas
-        const mMargin    = document.getElementById('m_margin');
-        const mProjected = document.getElementById('m_projected');
-        if (mMargin)    mMargin.textContent    = (data.margin || 0) + '%';
-        if (mProjected) mProjected.textContent = fmt(data.projectedMonthly);
-
-        // Custo por servidor
-        const renderCostList = (elId) => {
-            const costEl = document.getElementById(elId);
-            if (!costEl) return;
+        // Custo por servidor (aba PAINEL)
+        const costEl = document.getElementById('costList');
+        if (costEl) {
             costEl.innerHTML = '';
             if (data.costByServer && Object.keys(data.costByServer).length) {
                 Object.entries(data.costByServer).forEach(([server, value]) => {
@@ -1612,59 +1552,9 @@ async function loadMetrics() {
             } else {
                 costEl.innerHTML = '<span style="color:#444;font-size:12px">Nenhum dado ainda</span>';
             }
-        };
-        renderCostList('costList');
-        renderCostList('costListFin');
+        }
 
         // Tabela: Balan�o Mensal por Servidor
-        const srvBalBody = document.getElementById('serverBalanceBody');
-        if (srvBalBody) {
-            const details = data.serverDetails || [];
-            if (!details.length) {
-                srvBalBody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#555">Nenhum servidor com dados ainda</td></tr>';
-            } else {
-                const sorted = [...details].sort((a, b) => b.profit - a.profit);
-                srvBalBody.innerHTML = sorted.map(s => {
-                    const margin = s.revenue > 0 ? ((s.profit / s.revenue) * 100).toFixed(1) : '0.0';
-                    const profColor = s.profit >= 0 ? '#00cc66' : '#ff4444';
-                    const marginColor = Number(margin) >= 30 ? '#00cc66' : Number(margin) >= 10 ? '#ffaa00' : '#ff4444';
-                    return `<tr>
-                        <td><strong>${s.name}</strong></td>
-                        <td style="text-align:center">${s.ativos}</td>
-                        <td style="text-align:right;color:#4499ff">${fmt(s.revenue)}</td>
-                        <td style="text-align:right;color:#ff6644">${fmt(s.cost)}</td>
-                        <td style="text-align:right;color:${profColor}"><strong>${fmt(s.profit)}</strong></td>
-                        <td style="text-align:center;color:${marginColor}">${margin}%</td>
-                    </tr>`;
-                }).join('');
-            }
-        }
-        const profitEl = document.getElementById('profitByServer');
-        if (profitEl) {
-            profitEl.innerHTML = '';
-            if (data.profitByServer && Object.keys(data.profitByServer).length) {
-                Object.entries(data.profitByServer)
-                    .sort((a,b) => b[1]-a[1])
-                    .forEach(([server, value]) => {
-                        const color = value >= 0 ? 'var(--badge-ok-color, #00cc66)' : '#ff4444';
-                        profitEl.innerHTML += `<div class="cost-item">${server}<span style="color:${color}">${fmt(value)}</span></div>`;
-                    });
-            } else {
-                profitEl.innerHTML = '<span style="color:#444;font-size:12px">Nenhum dado ainda</span>';
-            }
-        }
-
-        // Servidor mais lucrativo
-        const mpEl = document.getElementById('mostProfitable');
-        if (mpEl) {
-            if (data.mostProfitable) {
-                const mp = data.mostProfitable;
-                mpEl.innerHTML = `<div class="cost-item" style="font-size:13px"><strong style="color:var(--accent)">${mp.name}</strong><span>Lucro: <strong>${fmt(mp.profit)}</strong> &nbsp;|&nbsp; Ativos: ${mp.ativos}</span></div>`;
-            } else {
-                mpEl.innerHTML = '<span style="color:#444;font-size:12px">Nenhum dado ainda</span>';
-            }
-        }
-
         // Ranking de revendas
         const rkEl = document.getElementById('resellerRanking');
         if (rkEl) {
@@ -1679,8 +1569,6 @@ async function loadMetrics() {
                 rkEl.innerHTML = '<span style="color:#444;font-size:12px">Nenhuma revenda cadastrada</span>';
             }
         }
-
-        renderChart(data);
     } catch (e) { console.error('Erro ao carregar métricas', e); }
 }
 
@@ -1965,6 +1853,183 @@ async function rejectRenewal(id, username) {
 }
 
 /* ===== INIT ===== */
+/* ===== FINANCEIRO COMPLETO ===== */
+async function loadFinanceiro() {
+    // Popula select de anos na primeira vez
+    const yrSel = document.getElementById('fin_year');
+    if (yrSel && !yrSel.options.length) {
+        const cur = new Date().getFullYear();
+        for (let y = cur - 2; y <= cur + 1; y++) {
+            const o = document.createElement('option');
+            o.value = y; o.textContent = y;
+            if (y === cur) o.selected = true;
+            yrSel.appendChild(o);
+        }
+    }
+    // Define mês atual como padrão na primeira vez
+    const mSel = document.getElementById('fin_month');
+    if (mSel && !mSel.dataset.initialized) {
+        mSel.value = new Date().getMonth() + 1;
+        mSel.dataset.initialized = '1';
+    }
+    const month = parseInt(document.getElementById('fin_month')?.value || (new Date().getMonth() + 1));
+    const year  = parseInt(document.getElementById('fin_year')?.value  || new Date().getFullYear());
+    const MNAMES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const periodoLbl = document.getElementById('fin_period_label');
+    if (periodoLbl) periodoLbl.textContent = `Exibindo: ${MNAMES[month-1]}/${year}`;
+
+    // Caixa para este período
+    const key = `${year}-${String(month).padStart(2,'0')}`;
+    const caixaVal = Number(_cachedSaldoCaixaJSON[key]) || 0;
+    const caixaInput = document.getElementById('fin_caixa');
+    if (caixaInput && !caixaInput.dataset.dirty) caixaInput.value = caixaVal || '';
+    const caixaCard = document.getElementById('fin_caixa_card');
+    if (caixaCard) caixaCard.textContent = fmt(caixaVal);
+
+    // Totais locais de gastos
+    const monthly = _cachedExpenses.reduce((a,e) => a + (Number(e.value)||0), 0);
+    const extras  = _cachedExtras.reduce((a,e)   => a + (Number(e.value)||0), 0);
+    const $ = id => document.getElementById(id);
+    if ($('fin_monthly')) $('fin_monthly').textContent = fmt(monthly);
+    if ($('fin_extras'))  $('fin_extras').textContent  = fmt(extras);
+
+    try {
+        const res  = await fetch(`/report?month=${month}&year=${year}`, { credentials: 'include' });
+        const data = await res.json();
+        const revenue = data.revenue || 0;
+        const cost    = data.cost    || 0;
+        if ($('f_revenue')) $('f_revenue').textContent = fmt(revenue);
+        if ($('f_cost'))    $('f_cost').textContent    = fmt(cost);
+        const saldo = caixaVal + revenue - cost - monthly - extras;
+        const profEl = $('f_profit');
+        if (profEl) { profEl.textContent = fmt(saldo); profEl.style.color = saldo >= 0 ? '#00cc66' : '#ff4444'; }
+
+        // Breakdown completo
+        const bd = $('fin_breakdown');
+        if (bd) bd.innerHTML = [
+            { label: '+ Caixa Inicial',  value: caixaVal, color: '#4499ff' },
+            { label: '+ Receita IPTV',   value: revenue,  color: '#00cc66' },
+            { label: '− Gastos IPTV',    value: cost,     color: '#ff6644' },
+            { label: '− Gastos Mensais', value: monthly,  color: '#ffaa00' },
+            { label: '− Gastos Extras',  value: extras,   color: '#ff4444' },
+            { label: '= SALDO LÍQUIDO',  value: saldo,    color: saldo >= 0 ? '#00cc66' : '#ff4444' },
+        ].map(i => `<div class="cost-item"><span style="color:${i.color}">${i.label}</span><span style="color:${i.color};font-weight:700">${fmt(i.value)}</span></div>`).join('');
+
+        // Breakdown: Gastos Mensais
+        const mbd = $('fin_monthly_breakdown');
+        if (mbd) mbd.innerHTML = _cachedExpenses.length
+            ? _cachedExpenses.map(e => `<div class="cost-item"><span>${e.name||'—'}</span><span style="color:#ffaa00">${fmt(Number(e.value)||0)}</span></div>`).join('')
+            : '<span style="color:#555;font-size:12px">Nenhum gasto mensal cadastrado</span>';
+
+        // Breakdown: Gastos Extras
+        const ebd = $('fin_extras_breakdown');
+        if (ebd) ebd.innerHTML = _cachedExtras.length
+            ? _cachedExtras.map(e => `<div class="cost-item"><span>${e.name||'—'}</span><span style="color:#ff6644">${fmt(Number(e.value)||0)}</span></div>`).join('')
+            : '<span style="color:#555;font-size:12px">Nenhum gasto extra cadastrado</span>';
+
+        // Custo por servidor
+        const costEl = $('costListFin');
+        if (costEl) {
+            costEl.innerHTML = '';
+            if (data.costByServer && Object.keys(data.costByServer).length) {
+                Object.entries(data.costByServer).forEach(([s,v]) => {
+                    costEl.innerHTML += `<div class="cost-item">${s}<span>${fmt(v)}</span></div>`;
+                });
+            } else costEl.innerHTML = '<span style="color:#444;font-size:12px">Nenhum dado ainda</span>';
+        }
+
+        // Balanço por servidor
+        const srvBalBody = $('serverBalanceBody');
+        if (srvBalBody) {
+            const details = data.serverDetails || [];
+            if (!details.length) {
+                srvBalBody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#555">Nenhum servidor com dados ainda</td></tr>';
+            } else {
+                const sorted = [...details].sort((a,b) => b.profit - a.profit);
+                srvBalBody.innerHTML = sorted.map(s => {
+                    const mg = s.revenue > 0 ? ((s.profit/s.revenue)*100).toFixed(1) : '0.0';
+                    const pc = s.profit >= 0 ? '#00cc66' : '#ff4444';
+                    const mc = Number(mg) >= 30 ? '#00cc66' : Number(mg) >= 10 ? '#ffaa00' : '#ff4444';
+                    return `<tr>
+                        <td><strong>${s.name}</strong></td>
+                        <td style="text-align:center">${s.ativos}</td>
+                        <td style="text-align:right;color:#4499ff">${fmt(s.revenue)}</td>
+                        <td style="text-align:right;color:#ff6644">${fmt(s.cost)}</td>
+                        <td style="text-align:right;color:${pc}"><strong>${fmt(s.profit)}</strong></td>
+                        <td style="text-align:center;color:${mc}">${mg}%</td>
+                    </tr>`;
+                }).join('');
+            }
+        }
+
+        // Lucro por servidor
+        const profitEl = $('profitByServer');
+        if (profitEl) {
+            profitEl.innerHTML = '';
+            if (data.profitByServer && Object.keys(data.profitByServer).length) {
+                Object.entries(data.profitByServer).sort((a,b) => b[1]-a[1]).forEach(([srv,val]) => {
+                    const c = val >= 0 ? 'var(--badge-ok-color,#00cc66)' : '#ff4444';
+                    profitEl.innerHTML += `<div class="cost-item">${srv}<span style="color:${c}">${fmt(val)}</span></div>`;
+                });
+            } else profitEl.innerHTML = '<span style="color:#444;font-size:12px">Nenhum dado ainda</span>';
+        }
+
+        // Servidor mais lucrativo
+        const mpEl = $('mostProfitable');
+        if (mpEl) {
+            if (data.mostProfitable) {
+                const mp = data.mostProfitable;
+                mpEl.innerHTML = `<div class="cost-item" style="font-size:13px"><strong style="color:var(--accent)">${mp.name}</strong><span>Lucro: <strong>${fmt(mp.profit)}</strong> &nbsp;|&nbsp; Ativos: ${mp.ativos}</span></div>`;
+            } else mpEl.innerHTML = '<span style="color:#444;font-size:12px">Nenhum dado ainda</span>';
+        }
+
+        // Atualiza margem/projeção no PAINEL também
+        if ($('m_margin'))    $('m_margin').textContent    = (data.margin||0) + '%';
+        if ($('m_projected')) $('m_projected').textContent = fmt(data.projectedMonthly);
+
+        renderChart(data);
+    } catch (e) { console.error('loadFinanceiro error', e); }
+}
+
+async function saveCaixa() {
+    if (document.getElementById('fin_caixa')) document.getElementById('fin_caixa').dataset.dirty = '';
+    const val   = Number(document.getElementById('fin_caixa')?.value) || 0;
+    const month = parseInt(document.getElementById('fin_month')?.value  || (new Date().getMonth() + 1));
+    const year  = parseInt(document.getElementById('fin_year')?.value   || new Date().getFullYear());
+    const key   = `${year}-${String(month).padStart(2,'0')}`;
+    _cachedSaldoCaixaJSON[key] = val;
+    try {
+        await fetch('/auth/preferences', {
+            method: 'PUT', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ saldoCaixaJSON: JSON.stringify(_cachedSaldoCaixaJSON) })
+        });
+        showToast('Caixa inicial salvo!', '#00cc66');
+        if (document.getElementById('fin_caixa')) delete document.getElementById('fin_caixa').dataset.dirty;
+        loadFinanceiro();
+    } catch (e) { showToast('Erro ao salvar caixa', '#ff4444'); }
+}
+
+function previewSaldo() {
+    const caixaInput = document.getElementById('fin_caixa');
+    if (caixaInput) caixaInput.dataset.dirty = '1';
+    const val     = Number(caixaInput?.value) || 0;
+    const parseCard = id => {
+        const el = document.getElementById(id);
+        if (!el) return 0;
+        return parseFloat(el.textContent.replace(/R\$\s*/,'').replace(/\./g,'').replace(',','.').trim()) || 0;
+    };
+    const revenue = parseCard('f_revenue');
+    const cost    = parseCard('f_cost');
+    const monthly = _cachedExpenses.reduce((a,e) => a + (Number(e.value)||0), 0);
+    const extras  = _cachedExtras.reduce((a,e)   => a + (Number(e.value)||0), 0);
+    const saldo   = val + revenue - cost - monthly - extras;
+    const profEl  = document.getElementById('f_profit');
+    if (profEl) { profEl.textContent = fmt(saldo); profEl.style.color = saldo >= 0 ? '#00cc66' : '#ff4444'; }
+    const caixaCard = document.getElementById('fin_caixa_card');
+    if (caixaCard) caixaCard.textContent = fmt(val);
+}
+
 window.onload = async () => {
     loadTheme();
     loadProfile();

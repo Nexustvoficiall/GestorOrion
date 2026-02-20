@@ -58,6 +58,11 @@ const User = sequelize.define('User', {
     monthlyExpenses: {
         type: DataTypes.FLOAT,
         defaultValue: 0
+    },
+    // Lista de gastos mensais como JSON ([{name, value}, ...])
+    expensesJSON: {
+        type: DataTypes.TEXT,
+        allowNull: true
     }
 });
 

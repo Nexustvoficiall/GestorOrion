@@ -246,6 +246,52 @@ body.theme-green {
     --srv-mens-glow:   #00dd6644;
 }
 
+/* ── TEMA LARANJA ── */
+body.theme-orange {
+    --accent:        #ff7700;
+    --accent2:       #ff9933;
+    --accent3:       #cc5500;
+    --accent-dim:    #ff770033;
+    --accent-glow:   #ff770055;
+    --border:        #2a1200;
+    --border2:       #3a1800;
+    --border3:       #5a2800;
+    --bg-body-glow:  #180a00;
+    --bg-card:       #0a0500;
+    --bg-panel:      #070300;
+    --bg-input:      #0a0500;
+    --bg-server:     #080400;
+    --bg-modal:      #070300;
+    --lightning-line: rgba(255,120,0,0.04);
+    --text-muted:    #885533;
+    --scrollbar:     #5a2800;
+    --badge-ok-bg:      #331500;
+    --badge-ok-color:   #ff8800;
+    --badge-ok-border:  #552200;
+    --badge-warn-bg:     #220800;
+    --badge-warn-color:  #ffcc44;
+    --badge-warn-border: #443300;
+    --row-warn-bg:      #0d0600;
+    --row-warn-border:  #ffaa00;
+    --row-danger-bg:    #0d0300;
+    --row-danger-border:#ff3300;
+    --panel-alert-border:#442200;
+    --panel-alert-glow:  #ff770011;
+    --alert-days:   #ffaa00;
+    --alert-urgent: #ff3300;
+    --btn-danger-bg:     transparent;
+    --btn-danger-border: #5a2800;
+    --btn-danger-color:  #ff9933;
+    --btn-danger-hover:  #3a1800;
+    --btn-success-bg:     #331500;
+    --btn-success-border: #552200;
+    --btn-success-color:  #ff8800;
+    --srv-mens-border: #883300;
+    --srv-mens-bg:     #0a0500;
+    --srv-mens-focus:  #ff7700;
+    --srv-mens-glow:   #ff770044;
+}
+
 /* ================================================================
    RESET & BASE
    ================================================================ */
@@ -394,6 +440,7 @@ h1 {
 .t-red    { background: #ff2222; }
 .t-blue   { background: #1a6fff; }
 .t-yellow { background: #ffc200; }
+.t-orange { background: #ff7700; }
 .t-purple { background: #bb44ff; }
 .t-green  { background: #00dd66; }
 
@@ -460,10 +507,11 @@ h1 {
     background: transparent;
     border: none;
     border-bottom: 2px solid transparent;
-    color: var(--text-muted);
+    color: #888;
     font-family: 'Rajdhani', 'Segoe UI', sans-serif;
-    font-size: 10px;
-    letter-spacing: 2px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
     cursor: pointer;
     transition: 0.2s;
     white-space: nowrap;

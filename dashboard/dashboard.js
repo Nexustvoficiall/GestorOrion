@@ -5,7 +5,7 @@
 const fmt = v => 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',');
 
 /* ===== TEMA ===== */
-const THEMES_LIST = ['red', 'blue', 'yellow', 'purple', 'green'];
+const THEMES_LIST = ['red', 'blue', 'yellow', 'orange', 'purple', 'green'];
 
 // Aplica o tema localmente (sem salvar no servidor)
 function applyThemeLocally(name) {
@@ -46,8 +46,13 @@ async function savePrefsToServer(prefs) {
 /* ===== PERFIL ===== */
 const DEFAULT_LOGO = '/dashboard/assets/logo.png';
 
+// Chave do localStorage isolada por usuário (evita vazar logo entre contas)
+let _userId = null;
+function logoKey() { return 'nexus_logo_' + (_userId || 'anon'); }
+
 function loadProfile() {
-    const logo = localStorage.getItem('nexus_logo') || DEFAULT_LOGO;
+    // Enquanto _userId não é conhecido, não le localStorage (evita mostrar logo de outro user)
+    const logo = _userId ? (localStorage.getItem(logoKey()) || DEFAULT_LOGO) : DEFAULT_LOGO;
     const topImg = document.getElementById('topLogoImg');
     const topIcon = document.getElementById('topLogoIcon');
     const prevImg = document.getElementById('logoPreviewImg');
@@ -65,7 +70,7 @@ function uploadLogo(input) {
     const reader = new FileReader();
     reader.onload = async e => {
         const data = e.target.result;
-        localStorage.setItem('nexus_logo', data);
+        localStorage.setItem(logoKey(), data);
         loadProfile();
         await savePrefsToServer({ logoBase64: data });
         showFlash('\u2705 Logo salva!');
@@ -74,7 +79,7 @@ function uploadLogo(input) {
 }
 
 function removeLogo() {
-    localStorage.removeItem('nexus_logo');
+    localStorage.removeItem(logoKey());
     const topImg = document.getElementById('topLogoImg');
     const topIcon = document.getElementById('topLogoIcon');
     const prevImg = document.getElementById('logoPreviewImg');
@@ -96,16 +101,16 @@ async function applyLogoFromServer() {
         if (!r.ok) return;
         const p = await r.json();
         if (p.logoBase64) {
-            localStorage.setItem('nexus_logo', p.logoBase64);
+            localStorage.setItem(logoKey(), p.logoBase64);
+            loadProfile();
+        } else {
+            // Sem logo no servidor — limpar cache desta conta para não exibir logo de outra
+            localStorage.removeItem(logoKey());
             loadProfile();
         }
-        // Carrega gastos mensais salvos do servidor
-        if (p.monthlyExpenses !== undefined) {
-            const expEl = document.getElementById('mensalistaExpenses');
-            if (expEl) {
-                expEl.value = p.monthlyExpenses || '';
-                loadMensalistas(); // recalcula lucro com o valor correto
-            }
+        // Carrega gastos mensais salvos
+        if (p.expensesJSON) {
+            try { renderExpenses(JSON.parse(p.expensesJSON)); } catch (_) {}
         }
     } catch (e) { /* falha silenciosa */ }
 }
@@ -349,6 +354,7 @@ async function loadAuditLog() {
 let _isAdmin = false;
 let _isMaster = false;
 let _isReseller = false;
+let _userId = null;
 
 async function loadUserInfo() {
     try {
@@ -358,6 +364,7 @@ async function loadUserInfo() {
         _isAdmin    = user.role === 'admin' || user.role === 'master';
         _isMaster   = user.role === 'master';
         _isReseller = user.role === 'personal';
+        _userId     = user.id;  // isola logo no localStorage por usuário
         document.getElementById('topUsername').textContent = user.username;
         const roleLabel = _isMaster ? 'MASTER' : (_isAdmin ? 'ADMINISTRADOR' : 'PESSOAL');
         document.getElementById('topRole').textContent = roleLabel;
@@ -1303,18 +1310,76 @@ async function createMensalista() {
     } catch (e) { alert('\u274c Erro ao cadastrar mensalista.'); }
 }
 
-async function saveMonthlyExpenses() {
-    const val = Number(document.getElementById('mensalistaExpenses')?.value) || 0;
+async function saveExpenses() {
+    const rows = document.querySelectorAll('#expenseContainer .expense-row');
+    const expenses = [];
+    rows.forEach(r => {
+        const name  = r.querySelector('.exp_name')?.value?.trim();
+        const value = Number(r.querySelector('.exp_value')?.value) || 0;
+        if (name && value > 0) expenses.push({ name, value });
+    });
     try {
         await fetch('/auth/preferences', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ monthlyExpenses: val })
+            body: JSON.stringify({ expensesJSON: JSON.stringify(expenses) })
         });
-        showFlash('\u2705 Gastos mensais salvos!');
+        showFlash('\u2705 Gastos salvos!');
         loadMensalistas();
     } catch (e) { alert('\u274c Erro ao salvar gastos.'); }
+}
+
+function addExpenseRow(data) {
+    const container = document.getElementById('expenseContainer');
+    if (!container) return;
+    // Garante que o cabeçalho existe
+    if (!container.querySelector('.expense-header')) {
+        const hdr = document.createElement('div');
+        hdr.className = 'server-header expense-header';
+        hdr.style.gridTemplateColumns = '1fr 160px 36px';
+        hdr.innerHTML = '<span>DESCRIÇÃO DO GASTO</span><span>VALOR (R$)</span><span></span>';
+        container.innerHTML = '';
+        container.appendChild(hdr);
+    }
+    const div = document.createElement('div');
+    div.className = 'serverRow expense-row';
+    div.style.gridTemplateColumns = '1fr 160px 36px';
+    div.innerHTML = `
+        <input class="exp_name" type="text" placeholder="Ex: Aluguel, Internet..." value="${data ? data.name.replace(/"/g,'&quot;') : ''}">
+        <input class="exp_value" type="number" placeholder="0.00" min="0" step="0.01" value="${data ? data.value : ''}" oninput="calcExpenseTotal()">
+        <button class="btn-secondary btn-remove" onclick="this.parentNode.remove();calcExpenseTotal()">&#10006;</button>
+    `;
+    container.appendChild(div);
+    calcExpenseTotal();
+}
+
+function renderExpenses(arr) {
+    const container = document.getElementById('expenseContainer');
+    if (!container) return;
+    container.innerHTML = '';
+    if (!arr || !arr.length) { calcExpenseTotal(); return; }
+    arr.forEach(item => addExpenseRow(item));
+    calcExpenseTotal();
+    loadMensalistas(); // recalcula lucro com gastos carregados
+}
+
+function calcExpenseTotal() {
+    const rows = document.querySelectorAll('#expenseContainer .expense-row');
+    const total = Array.from(rows).reduce((acc, r) => {
+        return acc + (Number(r.querySelector('.exp_value')?.value) || 0);
+    }, 0);
+    const el = document.getElementById('expenseTotal');
+    if (el) el.textContent = fmt(total);
+    // Atualiza cards de mensalistas se disponíveis
+    const profEl = document.getElementById('mm_profit');
+    const revEl  = document.getElementById('mm_revenue');
+    const expEl  = document.getElementById('mm_expenses_card');
+    if (expEl) expEl.textContent = fmt(total);
+    if (profEl && revEl) {
+        const rev = parseFloat(revEl.textContent.replace('R$ ', '').replace(',', '.')) || 0;
+        profEl.textContent = fmt(rev - total);
+    }
 }
 
 async function loadMensalistas() {
@@ -1388,12 +1453,14 @@ async function loadMensalistas() {
             });
         }
 
-        // Atualiza cards de resumo
-        const expenses = Number(document.getElementById('mensalistaExpenses')?.value) || 0;
+        // Atualiza cards de resumo — gastos calculados das linhas dinâmicas
+        const expRows = document.querySelectorAll('#expenseContainer .expense-row');
+        const expenses = Array.from(expRows).reduce((acc, r) => acc + (Number(r.querySelector('.exp_value')?.value) || 0), 0);
         const totalEl = document.getElementById('mm_total');        if (totalEl) totalEl.textContent = data.length;
         const revEl   = document.getElementById('mm_revenue');      if (revEl)   revEl.textContent   = fmt(totalRevenue);
         const expEl   = document.getElementById('mm_expenses_card');if (expEl)   expEl.textContent   = fmt(expenses);
         const profEl  = document.getElementById('mm_profit');       if (profEl)  profEl.textContent  = fmt(totalRevenue - expenses);
+        const expTotalEl = document.getElementById('expenseTotal');  if (expTotalEl) expTotalEl.textContent = fmt(expenses);
     } catch (e) { console.error('Erro ao carregar mensalistas', e); }
 }
 

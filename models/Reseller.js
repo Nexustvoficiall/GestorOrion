@@ -41,6 +41,12 @@ const Reseller = sequelize.define('Reseller', {
     ownerId: {
         type: DataTypes.INTEGER,
         allowNull: true
+    },
+    // Mensalidade fixa (apenas para tipo MENF — mensalista com valor fixo)
+    fixedFee: {
+        type: DataTypes.FLOAT,
+        allowNull: true,
+        defaultValue: null
     }
 });
 

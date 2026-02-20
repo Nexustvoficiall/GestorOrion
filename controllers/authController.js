@@ -290,10 +290,10 @@ exports.markFirstLoginDone = async (req, res) => {
 exports.getPreferences = async (req, res) => {
     try {
         const user = await User.findByPk(req.session.user.id, {
-            attributes: ['themeColor', 'logoBase64']
+            attributes: ['themeColor', 'logoBase64', 'monthlyExpenses']
         });
         if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
-        res.json({ themeColor: user.themeColor || 'red', logoBase64: user.logoBase64 || null });
+        res.json({ themeColor: user.themeColor || 'red', logoBase64: user.logoBase64 || null, monthlyExpenses: Number(user.monthlyExpenses) || 0 });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Erro ao carregar preferências' });
@@ -303,10 +303,11 @@ exports.getPreferences = async (req, res) => {
 /* PREFERÊNCIAS DO USUÁRIO: salva tema de cor e/ou logo (PUT) */
 exports.savePreferences = async (req, res) => {
     try {
-        const { themeColor, logoBase64 } = req.body;
+        const { themeColor, logoBase64, monthlyExpenses } = req.body;
         const updates = {};
         if (themeColor !== undefined) updates.themeColor = themeColor;
         if (logoBase64 !== undefined) updates.logoBase64 = logoBase64 || null;
+        if (monthlyExpenses !== undefined) updates.monthlyExpenses = Number(monthlyExpenses) || 0;
         await User.update(updates, { where: { id: req.session.user.id } });
         // Atualiza sessão para que /auth/me reflita imediatamente
         if (themeColor !== undefined) req.session.user.themeColor = themeColor;

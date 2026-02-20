@@ -53,6 +53,11 @@ const User = sequelize.define('User', {
     logoBase64: {
         type: DataTypes.TEXT,
         allowNull: true  // logo personalizado do painel (base64)
+    },
+    // Gastos mensais do usuário (usado na aba mensalistas para calcular lucro)
+    monthlyExpenses: {
+        type: DataTypes.FLOAT,
+        defaultValue: 0
     }
 });
 

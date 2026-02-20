@@ -359,6 +359,8 @@ sequelize.sync().then(async () => {
             await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "createdBy" INTEGER;`);
             await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "themeColor" VARCHAR(255) DEFAULT 'red';`);
             await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "logoBase64" TEXT;`);
+            await sequelize.query(`ALTER TABLE IF EXISTS "Resellers" ADD COLUMN IF NOT EXISTS "fixedFee" FLOAT;`);
+            await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "monthlyExpenses" FLOAT DEFAULT 0;`);
         } catch (_) { /* coluna já existe — ignorar */ }
     } else {
         // SQLite: sintaxe sem IF NOT EXISTS
@@ -366,6 +368,8 @@ sequelize.sync().then(async () => {
         try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "createdBy" INTEGER`); } catch (_) {}
         try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "themeColor" VARCHAR(255) DEFAULT 'red'`); } catch (_) {}
         try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "logoBase64" TEXT`); } catch (_) {}
+        try { await sequelize.query(`ALTER TABLE "Resellers" ADD COLUMN "fixedFee" FLOAT`); } catch (_) {}
+        try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "monthlyExpenses" FLOAT DEFAULT 0`); } catch (_) {}
     }
     // Migra role 'reseller' → 'personal' (renomeio de perfil) — roda em PG e SQLite
     try { await sequelize.query(`UPDATE "Users" SET "role" = 'personal' WHERE "role" = 'reseller'`); } catch (_) {}

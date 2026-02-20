@@ -25,7 +25,7 @@ exports.create = async (req, res) => {
         const sessionUser = req.session?.user;
         const ownerId = sessionUser?.id || null;
 
-        const reseller = await Reseller.create({ name, type, settleDate: settleDate || null, whatsapp: whatsapp || null, paymentStatus: 'PENDENTE', tenantId, ownerId });
+        const reseller = await Reseller.create({ name, type, settleDate: settleDate || null, whatsapp: whatsapp || null, paymentStatus: 'PENDENTE', tenantId, ownerId, fixedFee: req.body.fixedFee || null });
 
         if (servers && servers.length) {
             for (const s of servers) {
@@ -71,7 +71,7 @@ exports.list = async (req, res) => {
 exports.update = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, type, settleDate, paymentStatus, whatsapp, servers } = req.body;
+        const { name, type, settleDate, paymentStatus, whatsapp, servers, fixedFee } = req.body;
         const tenantId = req.tenantId;
         const sessionUser = req.session?.user;
         const where = ownerWhere(sessionUser, { id, tenantId });
@@ -79,7 +79,7 @@ exports.update = async (req, res) => {
         const reseller = await Reseller.findOne({ where });
         if (!reseller) return res.status(404).json({ error: 'Revenda não encontrada' });
 
-        await reseller.update({ name, type, settleDate: settleDate || null, paymentStatus, whatsapp: whatsapp || null });
+        await reseller.update({ name, type, settleDate: settleDate || null, paymentStatus, whatsapp: whatsapp || null, fixedFee: fixedFee !== undefined ? fixedFee : reseller.fixedFee });
 
         /* atualiza servidores se enviados */
         if (servers && servers.length) {

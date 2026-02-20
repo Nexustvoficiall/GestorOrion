@@ -99,6 +99,14 @@ async function applyLogoFromServer() {
             localStorage.setItem('nexus_logo', p.logoBase64);
             loadProfile();
         }
+        // Carrega gastos mensais salvos do servidor
+        if (p.monthlyExpenses !== undefined) {
+            const expEl = document.getElementById('mensalistaExpenses');
+            if (expEl) {
+                expEl.value = p.monthlyExpenses || '';
+                loadMensalistas(); // recalcula lucro com o valor correto
+            }
+        }
     } catch (e) { /* falha silenciosa */ }
 }
 
@@ -202,6 +210,7 @@ function switchTab(name) {
     if (name === 'admin') { loadResellerSelect(); loadUsers(); loadLicenseInfo(); updatePlanPreview('6m'); }
     if (name === 'servidores') loadServers();
     if (name === 'users') loadAdminUsers();
+    if (name === 'mensalistas') loadMensalistas();
 }
 
 /* ===== ADMINISTRADORES (ABA USERS — somente master) ===== */
@@ -871,29 +880,12 @@ async function renewClient() {
 }
 
 /* ===== REVENDAS — FORMULÁRIO DINÂMICO ===== */
-function isMensalista() {
-    return document.getElementById('r_type').value === 'MEN';
-}
 
 function onTypeChange() {
     const container = document.getElementById('serverContainer');
     const qtd = container.querySelectorAll('.serverRow').length;
     container.innerHTML = '';
     for (let i = 0; i < (qtd || 1); i++) addServer();
-}
-
-function calcPricePerActive(row) {
-    const mens   = Number(row.querySelector('.srv_mens')?.value) || 0;
-    const ativos = Number(row.querySelector('.srv_active').value) || 0;
-    const priceInput = row.querySelector('.srv_price');
-    if (mens > 0 && ativos > 0) {
-        priceInput.value = (mens / ativos).toFixed(2);
-        priceInput.readOnly = true;
-        priceInput.style.opacity = '0.5';
-    } else {
-        priceInput.readOnly = false;
-        priceInput.style.opacity = '1';
-    }
 }
 
 function buildServerOptions(selected) {
@@ -905,13 +897,11 @@ function buildServerOptions(selected) {
 
 function addServer() {
     const container = document.getElementById('serverContainer');
-    const men = isMensalista();
     if (container.querySelectorAll('.serverRow').length === 0) {
         container.innerHTML = `
-        <div class="server-header${men ? ' men' : ''}">
+        <div class="server-header">
             <span>SERVIDOR</span>
             <span>QTD ATIVOS</span>
-            ${men ? '<span>MENSALIDADE (R$)</span>' : ''}
             <span>VALOR / ATIVO (R$)</span>
             <span>SEU CUSTO / ATIVO (R$)</span>
             <span>DATA DE ACERTO</span>
@@ -919,13 +909,10 @@ function addServer() {
         </div>`;
     }
     const div = document.createElement('div');
-    div.className = 'serverRow' + (men ? ' men' : '');
+    div.className = 'serverRow';
     div.innerHTML = `
         <select class="srv_name">${buildServerOptions()}</select>
-        <input class="srv_active" type="number" placeholder="Ex: 50" min="0"
-            oninput="calcPricePerActive(this.closest('.serverRow'))">
-        ${men ? `<input class="srv_mens" type="number" placeholder="Ex: 120.00" min="0" step="0.01"
-            oninput="calcPricePerActive(this.closest('.serverRow'))">` : ''}
+        <input class="srv_active" type="number" placeholder="Ex: 50" min="0">
         <input class="srv_price" type="number" placeholder="Ex: 10.00" min="0" step="0.01">
         <input class="srv_cost" type="number" placeholder="Ex: 6.00" min="0" step="0.01">
         <input class="srv_settle" type="date" title="Data de Acerto deste servidor">
@@ -985,6 +972,8 @@ async function loadResellers() {
     try {
         const res = await fetch('/resellers', { credentials: 'include' });
         let data = await res.json();
+        // Mensalistas têm aba própria — não aparecem aqui
+        data = data.filter(r => r.type !== 'MEN' && r.type !== 'MENF');
         const filterStatus = document.getElementById('filterResellerStatus')?.value;
         const filterServer = document.getElementById('filterResellerServer')?.value;
         if (filterStatus) data = data.filter(r => r.status === filterStatus);
@@ -1062,6 +1051,7 @@ async function toggleResellerStatus(id, btn) {
         const res = await fetch('/resellers/' + id + '/status', { method: 'PATCH', credentials: 'include' });
         if (!res.ok) throw new Error();
         loadResellers();
+        loadMensalistas();
         loadMetrics();
     } catch (e) { alert('\u274c Erro ao atualizar status.'); }
 }
@@ -1077,6 +1067,7 @@ async function togglePayment(id, current, btn) {
         });
         if (!res.ok) throw new Error();
         loadResellers();
+        loadMensalistas();
         loadExpiringSoon();
     } catch (e) { alert('\u274c Erro ao atualizar pagamento.'); }
 }
@@ -1211,15 +1202,199 @@ function closeModal(e) {
 }
 
 async function deleteReseller(id, name) {
-    if (!confirm('Excluir a revenda "' + name + '"?\nEssa a\u00e7\u00e3o n\u00e3o pode ser desfeita.')) return;
+    if (!confirm('Excluir a revenda "' + name + '"?\nEssa ação não pode ser desfeita.')) return;
     try {
         const res = await fetch('/resellers/' + id, { method: 'DELETE', credentials: 'include' });
         if (!res.ok) throw new Error();
         loadResellers();
+        loadMensalistas();
         loadMetrics();
         loadExpiringSoon();
         loadResellerSelect();
     } catch (e) { alert('\u274c Erro ao excluir revenda.'); }
+}
+
+/* ===== MENSALISTAS ===== */
+
+function onMensalistaTypeChange() {
+    const container = document.getElementById('mensalistaFormExtra');
+    const btnAddServer = document.getElementById('btnAddMensalistaServer');
+    if (!container) return;
+    container.innerHTML = '';
+    const isFixo = document.getElementById('mn_type')?.value === 'MENF';
+    if (isFixo) {
+        if (btnAddServer) btnAddServer.style.display = 'none';
+        container.innerHTML = `
+        <div class="form-row" style="margin-bottom:15px">
+            <div class="field"><label>Valor Mensal (R$)</label><input id="mn_fixedFee" type="number" placeholder="Ex: 150.00" min="0" step="0.01"></div>
+            <div class="field"><label>Data de Acerto</label><input id="mn_fixedSettle" type="date"></div>
+        </div>`;
+    } else {
+        if (btnAddServer) btnAddServer.style.display = '';
+        addMensalistaServer();
+    }
+}
+
+function addMensalistaServer() {
+    const container = document.getElementById('mensalistaFormExtra');
+    if (!container) return;
+    if (container.querySelectorAll('.serverRow').length === 0) {
+        container.innerHTML = `
+        <div class="server-header">
+            <span>SERVIDOR</span>
+            <span>QTD ATIVOS</span>
+            <span>VALOR / ATIVO (R$)</span>
+            <span>SEU CUSTO / ATIVO (R$)</span>
+            <span>DATA DE ACERTO</span>
+            <span></span>
+        </div>`;
+    }
+    const div = document.createElement('div');
+    div.className = 'serverRow';
+    div.innerHTML = `
+        <select class="srv_name">${buildServerOptions()}</select>
+        <input class="srv_active" type="number" placeholder="Ex: 50" min="0">
+        <input class="srv_price" type="number" placeholder="Ex: 10.00" min="0" step="0.01">
+        <input class="srv_cost"  type="number" placeholder="Ex: 6.00"  min="0" step="0.01">
+        <input class="srv_settle" type="date" title="Data de Acerto deste servidor">
+        <button class="btn-secondary btn-remove" onclick="this.parentNode.remove()">&#10006;</button>
+    `;
+    container.appendChild(div);
+}
+
+async function createMensalista() {
+    const name = document.getElementById('mn_name').value.trim();
+    if (!name) { alert('Informe o nome!'); return; }
+    const type = document.getElementById('mn_type').value;
+    const body = { name, type, whatsapp: document.getElementById('mn_whatsapp').value || null };
+
+    if (type === 'MENF') {
+        body.fixedFee = Number(document.getElementById('mn_fixedFee')?.value) || 0;
+        body.settleDate = document.getElementById('mn_fixedSettle')?.value || null;
+        body.servers = [];
+    } else {
+        const rows = document.querySelectorAll('#mensalistaFormExtra .serverRow');
+        if (!rows.length) { alert('Adicione ao menos um servidor!'); return; }
+        body.servers = [];
+        rows.forEach(r => {
+            body.servers.push({
+                server:        r.querySelector('.srv_name').value,
+                activeCount:   Number(r.querySelector('.srv_active').value) || 0,
+                pricePerActive:Number(r.querySelector('.srv_price').value) || 0,
+                costPerActive: Number(r.querySelector('.srv_cost').value)  || 0,
+                settleDate:    r.querySelector('.srv_settle')?.value || null
+            });
+        });
+    }
+    try {
+        const res = await fetch('/resellers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(body)
+        });
+        if (!res.ok) throw new Error();
+        showFlash('\u2705 Mensalista cadastrado!');
+        document.getElementById('mn_name').value = '';
+        document.getElementById('mn_whatsapp').value = '';
+        onMensalistaTypeChange();
+        loadMensalistas();
+        loadMetrics();
+    } catch (e) { alert('\u274c Erro ao cadastrar mensalista.'); }
+}
+
+async function saveMonthlyExpenses() {
+    const val = Number(document.getElementById('mensalistaExpenses')?.value) || 0;
+    try {
+        await fetch('/auth/preferences', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ monthlyExpenses: val })
+        });
+        showFlash('\u2705 Gastos mensais salvos!');
+        loadMensalistas();
+    } catch (e) { alert('\u274c Erro ao salvar gastos.'); }
+}
+
+async function loadMensalistas() {
+    const table = document.getElementById('mensalistaList');
+    if (!table) return;
+    try {
+        const res = await fetch('/resellers', { credentials: 'include' });
+        let data = await res.json();
+        data = data.filter(r => r.type === 'MEN' || r.type === 'MENF');
+        table.innerHTML = '';
+        const today = new Date(); today.setHours(0,0,0,0);
+        let totalRevenue = 0;
+
+        if (!data.length) {
+            table.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#555">Nenhum mensalista cadastrado</td></tr>';
+        } else {
+            data.forEach(r => {
+                let receita = 0, totalAtivos = 0, displayInfo = '', settleDisplay = '-', rowClass = '';
+                if (r.type === 'MENF') {
+                    receita = Number(r.fixedFee) || 0;
+                    displayInfo = `<em style="color:var(--accent)">${fmt(receita)}/m\u00eas</em>`;
+                    totalAtivos = '&mdash;';
+                    if (r.settleDate) {
+                        const d = new Date(r.settleDate + 'T00:00:00');
+                        const diff = Math.ceil((d - today) / 86400000);
+                        if (diff >= 0 && diff <= 7) rowClass = 'row-warning';
+                        if (diff < 0) rowClass = 'row-danger';
+                        settleDisplay = d.toLocaleDateString('pt-BR');
+                    }
+                } else {
+                    const servers = r.servers || [];
+                    totalAtivos = servers.reduce((acc, s) => acc + (s.activeCount || 0), 0);
+                    receita     = servers.reduce((acc, s) => acc + (s.pricePerActive * s.activeCount), 0);
+                    const serverNames = servers.map(s => s.server).join(', ') || '-';
+                    displayInfo = serverNames.length > 28 ? serverNames.slice(0, 26) + '..' : serverNames;
+                    const settleParts = servers.map(s => {
+                        if (!s.settleDate) return null;
+                        const d = new Date(s.settleDate + 'T00:00:00');
+                        const diff = Math.ceil((d - today) / 86400000);
+                        if (diff >= 0 && diff <= 7 && rowClass !== 'row-danger') rowClass = 'row-warning';
+                        if (diff < 0) rowClass = 'row-danger';
+                        return `${s.server}: ${d.toLocaleDateString('pt-BR')}`;
+                    }).filter(Boolean);
+                    settleDisplay = settleParts.length ? settleParts.join('<br>') : '-';
+                }
+                totalRevenue += receita;
+                const pago    = r.paymentStatus === 'PAGO';
+                const isAtivo = r.status !== 'INATIVO';
+                const safeName = r.name.replace(/'/g, '');
+                const waTelR   = r.whatsapp ? r.whatsapp.replace(/\D/g, '') : '';
+                const waLinkR  = waTelR ? `<a href="https://wa.me/55${waTelR}" target="_blank" style="color:var(--accent)">${r.whatsapp}</a>` : '-';
+                const typeLabel = r.type === 'MENF'
+                    ? '<span class="badge" style="background:#1a6b9a;color:#fff;font-size:10px">FIXO</span>'
+                    : '<span class="badge" style="background:#2d6a4f;color:#fff;font-size:10px">POR ATIVO</span>';
+                table.innerHTML += `
+                <tr class="${rowClass}${isAtivo ? '' : ' row-inativo'}">
+                    <td>${r.name}</td>
+                    <td>${typeLabel}</td>
+                    <td>${waLinkR}</td>
+                    <td>${displayInfo}</td>
+                    <td style="text-align:center">${totalAtivos}</td>
+                    <td>${fmt(receita)}</td>
+                    <td style="font-size:12px;line-height:1.6">${settleDisplay}</td>
+                    <td><button class="badge ${pago ? 'badge-pago' : 'badge-pendente'}" onclick="togglePayment(${r.id}, '${r.paymentStatus}', this)">${r.paymentStatus}</button></td>
+                    <td><span class="badge ${isAtivo ? 'badge-pago' : 'badge-pendente'}">${r.status || 'ATIVO'}</span></td>
+                    <td class="td-actions">
+                        <button class="btn-action ${isAtivo ? 'btn-danger' : 'btn-success'}" onclick="toggleResellerStatus(${r.id}, this)" title="${isAtivo ? 'Desativar' : 'Ativar'}">${isAtivo ? '&#10006;' : '&#10003;'}</button>
+                        <button class="btn-action btn-danger" onclick="deleteReseller(${r.id}, '${safeName}')" title="Excluir">&#128465;</button>
+                    </td>
+                </tr>`;
+            });
+        }
+
+        // Atualiza cards de resumo
+        const expenses = Number(document.getElementById('mensalistaExpenses')?.value) || 0;
+        const totalEl = document.getElementById('mm_total');        if (totalEl) totalEl.textContent = data.length;
+        const revEl   = document.getElementById('mm_revenue');      if (revEl)   revEl.textContent   = fmt(totalRevenue);
+        const expEl   = document.getElementById('mm_expenses_card');if (expEl)   expEl.textContent   = fmt(expenses);
+        const profEl  = document.getElementById('mm_profit');       if (profEl)  profEl.textContent  = fmt(totalRevenue - expenses);
+    } catch (e) { console.error('Erro ao carregar mensalistas', e); }
 }
 
 /* ===== MÉTRICAS ===== */
@@ -1442,6 +1617,8 @@ window.onload = async () => {
     loadMetrics();
     addServer();
     loadResellers();
+    loadMensalistas();
+    onMensalistaTypeChange();
 };
 
 

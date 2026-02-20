@@ -255,14 +255,16 @@ async function loadAuditLog() {
 /* ===== AUTH ===== */
 let _isAdmin = false;
 let _isMaster = false;
+let _isReseller = false;
 
 async function loadUserInfo() {
     try {
         const res = await fetch('/auth/me', { credentials: 'include' });
         if (!res.ok) { window.location.href = '/login'; return; }
         const user = await res.json();
-        _isAdmin  = user.role === 'admin' || user.role === 'master';
-        _isMaster = user.role === 'master';
+        _isAdmin    = user.role === 'admin' || user.role === 'master';
+        _isMaster   = user.role === 'master';
+        _isReseller = user.role === 'reseller';
         document.getElementById('topUsername').textContent = user.username;
         const roleLabel = _isMaster ? 'MASTER' : (_isAdmin ? 'ADMINISTRADOR' : 'REVENDEDOR');
         document.getElementById('topRole').textContent = roleLabel;
@@ -273,6 +275,23 @@ async function loadUserInfo() {
         if (_isAdmin) {
             const tab = document.getElementById('tabAdmin');
             if (tab) tab.style.display = '';
+        }
+        // Revendedor: esconder abas que não fazem sentido para ele
+        if (_isReseller) {
+            ['revendas','servidores','financeiro'].forEach(t => {
+                const btn = document.querySelector(`[data-tab="${t}"]`);
+                if (btn) btn.style.display = 'none';
+            });
+            // Esconder seções do painel que são admin-only
+            ['resellerRanking','costList'].forEach(id => {
+                const el = document.getElementById(id)?.closest('section.panel');
+                if (el) el.style.display = 'none';
+            });
+            // Simplificar cards do painel — esconder métricas financeiras
+            ['m_resellers','m_revenue','m_cost','m_profit','m_margin','m_projected'].forEach(id => {
+                const el = document.getElementById(id)?.closest('.card');
+                if (el) el.style.display = 'none';
+            });
         }
         // Configura seletor de perfil de usuário
         setupUserRoleSelector();
@@ -1121,16 +1140,47 @@ async function loadExpiringSoon() {
     } catch (e) { console.error('Erro alertas', e); }
 }
 
+/* ===== EXPORTAR CSV ===== */
+function exportClientesCSV() {
+    if (!_clientMap.size) { showFlash('⚠ Nenhum cliente para exportar.'); return; }
+    const cols = ['Nome','Usuario','WhatsApp','Servidor','App','Plano (dias)','Valor','Custo','Inicio','Vencimento','Status'];
+    const rows = [..._clientMap.values()].map(c => [
+        c.name || '',
+        c.username || '',
+        c.whatsapp || '',
+        c.server || '',
+        c.app || '',
+        c.planType || '',
+        (c.planValue || 0).toFixed(2),
+        (c.costPerActive || 0).toFixed(2),
+        c.startDate ? new Date(c.startDate).toLocaleDateString('pt-BR') : '',
+        c.dueDate   ? new Date(c.dueDate).toLocaleDateString('pt-BR')   : '',
+        c.status || 'ATIVO'
+    ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(';'));
+    const csv = '\uFEFF' + [cols.join(';'), ...rows].join('\n'); // BOM para Excel BR
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const today = new Date().toLocaleDateString('pt-BR').replace(/\//g,'-');
+    a.href = url; a.download = `clientes_${today}.csv`;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showFlash(`✅ ${_clientMap.size} cliente(s) exportados!`);
+}
+
 /* ===== INIT ===== */
 window.onload = async () => {
     loadTheme();
     loadProfile();
     await loadUserInfo();
     await loadServers();
-    addServer();
     loadClients();
-    loadResellers();
-    loadMetrics();
     loadExpiringSoon();
     loadLicenseStatus();
+    if (!_isReseller) {
+        addServer();
+        loadResellers();
+        loadMetrics();
+    }
 };

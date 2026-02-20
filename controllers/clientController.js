@@ -1,6 +1,7 @@
 const { Client } = require('../models');
 const dayjs = require('dayjs');
 const { audit } = require('../middlewares/authMiddleware');
+const { Op } = require('sequelize');
 
 exports.create = async (req, res) => {
 
@@ -9,12 +10,19 @@ exports.create = async (req, res) => {
     const startDate = dayjs();
     const dueDate = startDate.add(Number(planType), 'day');
     const tenantId = req.tenantId;
+    const sessionUser = req.session?.user;
 
     if (!tenantId) return res.status(403).json({ error: 'Tenant não identificado' });
+
+    // Revendedor só pode criar clientes vinculados a si mesmo
+    const resellerId = sessionUser?.role === 'reseller' && sessionUser?.resellerId
+        ? sessionUser.resellerId
+        : (req.body.resellerId || null);
 
     const client = await Client.create({
         ...req.body,
         tenantId,
+        resellerId,
         startDate: startDate.toDate(),
         dueDate: dueDate.toDate()
     });
@@ -25,14 +33,27 @@ exports.create = async (req, res) => {
 
 exports.list = async (req, res) => {
     const tenantId = req.tenantId;
+    const sessionUser = req.session?.user;
     if (!tenantId) return res.status(403).json({ error: 'Tenant não identificado' });
-    const clients = await Client.findAll({ where: { tenantId }, order: [['createdAt', 'DESC']] });
+
+    // Revendedor vê apenas seus próprios clientes
+    const where = { tenantId };
+    if (sessionUser?.role === 'reseller' && sessionUser?.resellerId) {
+        where.resellerId = sessionUser.resellerId;
+    }
+
+    const clients = await Client.findAll({ where, order: [['createdAt', 'DESC']] });
     res.json(clients);
 };
 
 exports.toggleStatus = async (req, res) => {
     try {
-        const client = await Client.findOne({ where: { id: req.params.id, tenantId: req.tenantId } });
+        const sessionUser = req.session?.user;
+        const where = { id: req.params.id, tenantId: req.tenantId };
+        if (sessionUser?.role === 'reseller' && sessionUser?.resellerId) {
+            where.resellerId = sessionUser.resellerId;
+        }
+        const client = await Client.findOne({ where });
         if (!client) return res.status(404).json({ error: 'Cliente não encontrado' });
         const newStatus = client.status === 'ATIVO' ? 'INATIVO' : 'ATIVO';
         await client.update({ status: newStatus });

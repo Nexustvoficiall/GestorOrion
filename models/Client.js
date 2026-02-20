@@ -6,6 +6,10 @@ const Client = sequelize.define('Client', {
         type: DataTypes.UUID,
         allowNull: false
     },
+    resellerId: {
+        type: DataTypes.INTEGER,
+        allowNull: true  // null = criado pelo admin direto
+    },
     name: DataTypes.STRING,
     username: DataTypes.STRING,
     password: DataTypes.STRING,

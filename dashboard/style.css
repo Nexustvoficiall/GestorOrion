@@ -1500,3 +1500,47 @@ tbody tr:hover { background: var(--bg-card); }
 .plan-card-selected .plan-card-period {
     color: var(--accent2, #4499ff);
 }
+
+/* ================================================================
+   MOBILE RESPONSIVO — MELHORIAS
+   ================================================================ */
+@media (max-width: 768px) {
+    .topbar { padding: 10px 16px; gap: 10px; }
+    h1 { font-size: 14px; letter-spacing: 1px; max-width: 140px; }
+    .tag { display: none; }
+    .top-user { font-size: 11px; }
+    .top-role { display: none; }
+    .btn-logout { padding: 6px 10px; font-size: 9px; }
+
+    .tabs { padding: 0 8px; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+    .tab-btn { padding: 12px 14px; font-size: 9px; letter-spacing: 1px; }
+
+    .metrics { padding: 16px 12px 8px; gap: 10px; }
+    .card { min-width: 140px; padding: 14px 16px; }
+    .card p { font-size: 20px; }
+
+    .panel { margin: 10px 12px; padding: 16px 14px; }
+
+    .form-row { gap: 10px; }
+    .field { min-width: 100%; }
+
+    .panel-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+}
+
+@media (max-width: 480px) {
+    .metrics { padding: 10px 8px; }
+    .card { min-width: 120px; padding: 12px; }
+    .card h3 { font-size: 9px; }
+    .card p { font-size: 18px; }
+
+    .panel { margin: 8px; padding: 12px 10px; }
+    .panel h2 { font-size: 11px; letter-spacing: 2px; }
+
+    .serverRow, .server-header {
+        grid-template-columns: 1fr 1fr;
+        font-size: 10px;
+    }
+
+    th { font-size: 9px; padding: 8px; }
+    td { font-size: 11px; padding: 8px; }
+}

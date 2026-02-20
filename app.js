@@ -349,6 +349,13 @@ async function ensureMasterAdmin() {
    alter:true pode recriar tabelas com FK constraints causando perda de dados. */
 sequelize.sync().then(async () => {
     console.log('✅ Banco conectado e sincronizado');
+
+    /* Migração segura: adiciona colunas novas sem recriar tabelas */
+    if (process.env.DATABASE_URL) {
+        try {
+            await sequelize.query(`ALTER TABLE IF EXISTS "Clients" ADD COLUMN IF NOT EXISTS "resellerId" INTEGER;`);
+        } catch (_) { /* coluna já existe ou SQLite — ignorar */ }
+    }
     await ensureMasterAdmin();
     const { startCronJobs } = require('./services/cronService');
     startCronJobs();

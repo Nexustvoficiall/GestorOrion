@@ -1,5 +1,19 @@
 const { Reseller, ResellerServer } = require('../models');
+const { Op } = require('sequelize');
 const { audit } = require('../middlewares/authMiddleware');
+
+/* Helper: filtra por ownerId de acordo com o role
+   - master: vê seus próprios registros OU registros legados sem ownerId (compatibilidade retroativa)
+   - personal/admin: vê exclusivamente seus próprios registros */
+function ownerWhere(sessionUser, base = {}) {
+    if (sessionUser?.role === 'master') {
+        return { ...base, [Op.or]: [{ ownerId: sessionUser.id }, { ownerId: null }] };
+    }
+    if (['personal', 'admin'].includes(sessionUser?.role)) {
+        return { ...base, ownerId: sessionUser.id };
+    }
+    return base;
+}
 
 /* CRIAR REVENDEDOR */
 exports.create = async (req, res) => {
@@ -9,7 +23,7 @@ exports.create = async (req, res) => {
         if (!tenantId) return res.status(403).json({ error: 'Tenant não identificado' });
 
         const sessionUser = req.session?.user;
-        const ownerId = ['personal', 'admin'].includes(sessionUser?.role) ? sessionUser.id : null;
+        const ownerId = sessionUser?.id || null;
 
         const reseller = await Reseller.create({ name, type, settleDate: settleDate || null, whatsapp: whatsapp || null, paymentStatus: 'PENDENTE', tenantId, ownerId });
 
@@ -41,10 +55,7 @@ exports.list = async (req, res) => {
         const tenantId = req.tenantId;
         if (!tenantId) return res.status(403).json({ error: 'Tenant não identificado' });
         const sessionUser = req.session?.user;
-        const where = { tenantId };
-        if (['personal', 'admin'].includes(sessionUser?.role)) {
-            where.ownerId = sessionUser.id;
-        }
+        const where = ownerWhere(sessionUser, { tenantId });
         const data = await Reseller.findAll({
             where,
             include: [{ model: ResellerServer, as: 'servers' }],
@@ -63,8 +74,7 @@ exports.update = async (req, res) => {
         const { name, type, settleDate, paymentStatus, whatsapp, servers } = req.body;
         const tenantId = req.tenantId;
         const sessionUser = req.session?.user;
-        const where = { id, tenantId };
-        if (['personal', 'admin'].includes(sessionUser?.role)) where.ownerId = sessionUser.id;
+        const where = ownerWhere(sessionUser, { id, tenantId });
 
         const reseller = await Reseller.findOne({ where });
         if (!reseller) return res.status(404).json({ error: 'Revenda não encontrada' });
@@ -101,8 +111,7 @@ exports.updatePayment = async (req, res) => {
         const { paymentStatus } = req.body;
         const tenantId = req.tenantId;
         const sessionUser = req.session?.user;
-        const where = { id, tenantId };
-        if (['personal', 'admin'].includes(sessionUser?.role)) where.ownerId = sessionUser.id;
+        const where = ownerWhere(sessionUser, { id, tenantId });
         await Reseller.update({ paymentStatus }, { where });
         res.json({ success: true });
     } catch (err) {
@@ -117,8 +126,7 @@ exports.setPlan = async (req, res) => {
         const { action, months, planValue } = req.body; // action: 'activate' | 'renew' | 'cancel'
         const tenantId = req.tenantId;
         const sessionUser = req.session?.user;
-        const planWhere = { id, tenantId };
-        if (['personal', 'admin'].includes(sessionUser?.role)) planWhere.ownerId = sessionUser.id;
+        const planWhere = ownerWhere(sessionUser, { id, tenantId });
 
         const reseller = await Reseller.findOne({ where: planWhere });
         if (!reseller) return res.status(404).json({ error: 'Revenda não encontrada' });
@@ -155,8 +163,7 @@ exports.remove = async (req, res) => {
         const { id } = req.params;
         const tenantId = req.tenantId;
         const sessionUser = req.session?.user;
-        const where = { id, tenantId };
-        if (['personal', 'admin'].includes(sessionUser?.role)) where.ownerId = sessionUser.id;
+        const where = ownerWhere(sessionUser, { id, tenantId });
         const reseller = await Reseller.findOne({ where });
         if (!reseller) return res.status(404).json({ error: 'Revenda não encontrada' });
         await ResellerServer.destroy({ where: { resellerId: id, tenantId } });
@@ -174,8 +181,7 @@ exports.toggleStatus = async (req, res) => {
     try {
         const tenantId = req.tenantId;
         const sessionUser = req.session?.user;
-        const where = { id: req.params.id, tenantId };
-        if (['personal', 'admin'].includes(sessionUser?.role)) where.ownerId = sessionUser.id;
+        const where = ownerWhere(sessionUser, { id: req.params.id, tenantId });
         const r = await Reseller.findOne({ where });
         if (!r) return res.status(404).json({ error: 'Revenda não encontrada' });
         const newStatus = r.status === 'ATIVO' ? 'INATIVO' : 'ATIVO';

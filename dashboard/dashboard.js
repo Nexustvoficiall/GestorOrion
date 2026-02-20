@@ -1,5 +1,5 @@
-﻿/* ============================================================
-   GESTOR ORION â€” DASHBOARD CONTROLLER
+/* ============================================================
+   GESTOR ORION — DASHBOARD CONTROLLER
    ============================================================ */
 
 const fmt = v => 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',');
@@ -20,7 +20,7 @@ function applyThemeLocally(name) {
     localStorage.setItem('nexus_theme', name);
 }
 
-// Aplica tema E salva no servidor (acionado pelo usuÃ¡rio via botÃ£o)
+// Aplica tema E salva no servidor (acionado pelo usuário via botão)
 async function setTheme(name) {
     applyThemeLocally(name);
     await savePrefsToServer({ themeColor: name });
@@ -31,7 +31,7 @@ function loadTheme() {
     applyThemeLocally(localStorage.getItem('nexus_theme') || 'red');
 }
 
-// Salva preferÃªncias no servidor (themeColor e/ou logoBase64)
+// Salva preferências no servidor (themeColor e/ou logoBase64)
 async function savePrefsToServer(prefs) {
     try {
         await fetch('/auth/preferences', {
@@ -40,7 +40,7 @@ async function savePrefsToServer(prefs) {
             credentials: 'include',
             body: JSON.stringify(prefs)
         });
-    } catch (e) { /* falha silenciosa â€” dado jÃ¡ aplicado localmente */ }
+    } catch (e) { /* falha silenciosa — dado já aplicado localmente */ }
 }
 
 /* ===== PERFIL ===== */
@@ -61,7 +61,7 @@ function loadProfile() {
 function uploadLogo(input) {
     const file = input.files[0];
     if (!file) return;
-    if (file.size > 500 * 1024) { alert('Imagem muito grande. Use atÃ© 500KB.'); return; }
+    if (file.size > 500 * 1024) { alert('Imagem muito grande. Use até 500KB.'); return; }
     const reader = new FileReader();
     reader.onload = async e => {
         const data = e.target.result;
@@ -116,9 +116,9 @@ async function changeUsername() {
         setTimeout(() => { msg.style.display = 'none'; }, 4000);
     };
 
-    if (!newUser) return show('Informe o novo nome de usuÃ¡rio.', false);
+    if (!newUser) return show('Informe o novo nome de usuário.', false);
     if (!pwd)     return show('Informe sua senha para confirmar.', false);
-    if (newUser.length < 3) return show('Nome muito curto (mÃ­nimo 3 caracteres).', false);
+    if (newUser.length < 3) return show('Nome muito curto (mínimo 3 caracteres).', false);
 
     try {
         const r = await fetch('/auth/change-username', {
@@ -129,15 +129,15 @@ async function changeUsername() {
         });
         const d = await r.json();
         if (r.ok) {
-            show('âœ… UsuÃ¡rio alterado! VocÃª serÃ¡ redirecionado...', true);
+            show('✅ Usuário alterado! Você será redirecionado...', true);
             document.getElementById('topUsername').textContent = newUser;
             document.getElementById('usernameInput').value = '';
             document.getElementById('usernamePassword').value = '';
             setTimeout(() => { window.location.href = '/login'; }, 2500);
         } else {
-            show(d.error || 'Erro ao alterar usuÃ¡rio.', false);
+            show(d.error || 'Erro ao alterar usuário.', false);
         }
-    } catch (e) { show('Erro de conexÃ£o.', false); }
+    } catch (e) { show('Erro de conexão.', false); }
 }
 
 async function changePwd() {
@@ -154,7 +154,7 @@ async function changePwd() {
     };
 
     if (!cur || !novo || !conf) return show('Preencha todos os campos.', false);
-    if (novo !== conf) return show('As senhas nÃ£o coincidem.', false);
+    if (novo !== conf) return show('As senhas não coincidem.', false);
     if (novo.length < 4) return show('Nova senha muito curta.', false);
 
     try {
@@ -166,14 +166,14 @@ async function changePwd() {
         });
         const d = await r.json();
         if (r.ok) {
-            show('âœ… Senha alterada com sucesso!', true);
+            show('✅ Senha alterada com sucesso!', true);
             document.getElementById('pwd_current').value = '';
             document.getElementById('pwd_new').value = '';
             document.getElementById('pwd_confirm').value = '';
         } else {
             show(d.error || 'Erro ao alterar senha.', false);
         }
-    } catch (e) { show('Erro de conexÃ£o.', false); }
+    } catch (e) { show('Erro de conexão.', false); }
 }
 
 function showFlash(msg) {
@@ -204,14 +204,14 @@ function switchTab(name) {
     if (name === 'users') loadAdminUsers();
 }
 
-/* ===== ADMINISTRADORES (ABA USERS â€” somente master) ===== */
+/* ===== ADMINISTRADORES (ABA USERS — somente master) ===== */
 async function loadAdminUsers() {
     const tb = document.getElementById('adminUserList');
     if (!tb) return;
     tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#555">Carregando...</td></tr>';
     try {
         const res = await fetch('/auth/admins', { credentials: 'include' });
-        if (!res.ok) { tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#f44">Sem permissÃ£o</td></tr>'; return; }
+        if (!res.ok) { tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#f44">Sem permissão</td></tr>'; return; }
         const admins = await res.json();
         if (!admins.length) {
             tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#555">Nenhum administrador cadastrado</td></tr>';
@@ -220,8 +220,8 @@ async function loadAdminUsers() {
         tb.innerHTML = admins.map(a => {
             const expDate = a.panelExpiry ? new Date(a.panelExpiry).toLocaleDateString('pt-BR') : '&mdash;';
             const statusBadge = a.isExpired
-                ? '<span class="badge badge-pendente" style="font-size:9px">âš  EXPIRADO</span>'
-                : '<span class="badge badge-pago" style="font-size:9px">âœ“ ATIVO</span>';
+                ? '<span class="badge badge-pendente" style="font-size:9px">⚠ EXPIRADO</span>'
+                : '<span class="badge badge-pago" style="font-size:9px">✓ ATIVO</span>';
             const createdAt = new Date(a.createdAt).toLocaleDateString('pt-BR');
             return `<tr>
                 <td><strong>${a.username}</strong><br><span style="font-size:10px;color:#666">criado em ${createdAt}</span></td>
@@ -250,7 +250,7 @@ async function loadAdminUsers() {
     }
 }
 
-/* ===== LICENÃ‡A ===== */
+/* ===== LICENÇA ===== */
 async function loadLicenseStatus() {
     try {
         const r = await fetch('/owner/license-status');
@@ -258,10 +258,10 @@ async function loadLicenseStatus() {
         const banner = document.getElementById('licenseBanner');
         if (!banner) return;
         if (!d.valid) {
-            banner.innerHTML = `<span style="background:#ff2222;color:#fff;padding:3px 10px;font-family:'Rajdhani','Segoe UI',sans-serif;font-size:9px;letter-spacing:1px">âš  LICENÃ‡A EXPIRADA</span>`;
+            banner.innerHTML = `<span style="background:#ff2222;color:#fff;padding:3px 10px;font-family:'Rajdhani','Segoe UI',sans-serif;font-size:9px;letter-spacing:1px">⚠ LICENÇA EXPIRADA</span>`;
             banner.style.display = 'block';
         } else if (d.warning) {
-            banner.innerHTML = `<span style="background:#ffaa00;color:#000;padding:3px 10px;font-family:'Rajdhani','Segoe UI',sans-serif;font-size:9px;letter-spacing:1px">âš  LICENÃ‡A VENCE EM ${d.daysLeft}d</span>`;
+            banner.innerHTML = `<span style="background:#ffaa00;color:#000;padding:3px 10px;font-family:'Rajdhani','Segoe UI',sans-serif;font-size:9px;letter-spacing:1px">⚠ LICENÇA VENCE EM ${d.daysLeft}d</span>`;
             banner.style.display = 'block';
         }
     } catch(e) {}
@@ -277,8 +277,8 @@ async function loadLicenseInfo() {
             el.innerHTML = `
                 <span style="color:#aaa">PLANO:</span> <strong style="color:var(--accent)">${d.plan || 'PRO'}</strong> &nbsp;
                 <span style="color:#aaa">STATUS:</span> <strong style="color:${statusColor}">${d.valid ? 'ATIVO' : 'EXPIRADO'}</strong> &nbsp;
-                <span style="color:#aaa">VALIDADE:</span> <strong>${d.expiresAt ? new Date(d.expiresAt+'T00:00:00').toLocaleDateString('pt-BR') : 'SEM EXPIRAÃ‡ÃƒO'}</strong>
-                ${d.daysLeft !== null && d.daysLeft !== undefined ? `&nbsp; <span style="color:${d.daysLeft<=7?'#ffaa00':'#aaa'}">(â³ ${d.daysLeft} dias restantes)</span>` : ''}
+                <span style="color:#aaa">VALIDADE:</span> <strong>${d.expiresAt ? new Date(d.expiresAt+'T00:00:00').toLocaleDateString('pt-BR') : 'SEM EXPIRAÇÃO'}</strong>
+                ${d.daysLeft !== null && d.daysLeft !== undefined ? `&nbsp; <span style="color:${d.daysLeft<=7?'#ffaa00':'#aaa'}">(⏳ ${d.daysLeft} dias restantes)</span>` : ''}
             `;
         }
         // Preencher o form com dados atuais
@@ -306,9 +306,9 @@ async function saveLicense() {
             credentials: 'include',
             body: JSON.stringify({ licenseExpiration: expiration || null, plan, isActive })
         });
-        if (r.ok) { showFlash('âœ… LicenÃ§a salva!'); loadLicenseInfo(); loadLicenseStatus(); }
-        else showFlash('âŒ Erro ao salvar licenÃ§a');
-    } catch(e) { showFlash('âŒ Erro de conexÃ£o'); }
+        if (r.ok) { showFlash('✅ Licença salva!'); loadLicenseInfo(); loadLicenseStatus(); }
+        else showFlash('❌ Erro ao salvar licença');
+    } catch(e) { showFlash('❌ Erro de conexão'); }
 }
 
 /* ===== LOG DE AUDITORIA ===== */
@@ -353,23 +353,23 @@ async function loadUserInfo() {
         const roleLabel = _isMaster ? 'MASTER' : (_isAdmin ? 'ADMINISTRADOR' : 'PESSOAL');
         document.getElementById('topRole').textContent = roleLabel;
         if (_isMaster) document.getElementById('topRole').style.color = 'var(--accent2)';
-        // Preencher campo de usuÃ¡rio na aba Perfil
+        // Preencher campo de usuário na aba Perfil
         const uInp = document.getElementById('usernameInput');
         if (uInp) uInp.placeholder = user.username;
         // Aplicar tema e logo salvos no servidor (fonte de verdade ao logar em outro dispositivo)
         applyThemeLocally(user.themeColor || localStorage.getItem('nexus_theme') || 'red');
-        applyLogoFromServer(); // async, nÃ£o bloqueia o carregamento
+        applyLogoFromServer(); // async, não bloqueia o carregamento
         if (_isAdmin) {
             const tab = document.getElementById('tabAdmin');
             if (tab) tab.style.display = '';
         }
-        // Aba USUÃRIOS visÃ­vel apenas para master
+        // Aba USUÁRIOS visível apenas para master
         if (_isMaster) {
             const tabU = document.getElementById('tabUsers');
             if (tabU) tabU.style.display = '';
         }
-        // Personal: painel completo com dados isolados â€” nÃ£o esconder nenhum card
-        // (backend jÃ¡ filtra pelos dados exclusivos do usuÃ¡rio)
+        // Personal: painel completo com dados isolados — não esconder nenhum card
+        // (backend já filtra pelos dados exclusivos do usuário)
 
         // Exibir banner de validade do painel para personal e admin
         if (!_isMaster && user.panelExpiry) {
@@ -381,18 +381,18 @@ async function loadUserInfo() {
             const banner  = document.getElementById('licenseBanner');
             if (banner) {
                 if (daysLeft <= 0) {
-                    banner.innerHTML = `<span style="background:#ff2222;color:#fff;padding:3px 10px;font-family:'Rajdhani','Segoe UI',sans-serif;font-size:9px;letter-spacing:1px">âš  SEU PAINEL EXPIROU EM ${fmtExp}</span>`;
+                    banner.innerHTML = `<span style="background:#ff2222;color:#fff;padding:3px 10px;font-family:'Rajdhani','Segoe UI',sans-serif;font-size:9px;letter-spacing:1px">⚠ SEU PAINEL EXPIROU EM ${fmtExp}</span>`;
                 } else if (daysLeft <= 7) {
-                    banner.innerHTML = `<span style="background:#ffaa00;color:#000;padding:3px 10px;font-family:'Rajdhani','Segoe UI',sans-serif;font-size:9px;letter-spacing:1px">âš  PAINEL VENCE EM ${daysLeft}d (${fmtExp})</span>`;
+                    banner.innerHTML = `<span style="background:#ffaa00;color:#000;padding:3px 10px;font-family:'Rajdhani','Segoe UI',sans-serif;font-size:9px;letter-spacing:1px">⚠ PAINEL VENCE EM ${daysLeft}d (${fmtExp})</span>`;
                 } else {
-                    banner.innerHTML = `<span style="background:#1a2a1a;color:#00cc66;padding:3px 10px;font-family:'Rajdhani','Segoe UI',sans-serif;font-size:9px;letter-spacing:1px;border:1px solid #00cc6644">âœ“ PAINEL VÃLIDO ATÃ‰ ${fmtExp}</span>`;
+                    banner.innerHTML = `<span style="background:#1a2a1a;color:#00cc66;padding:3px 10px;font-family:'Rajdhani','Segoe UI',sans-serif;font-size:9px;letter-spacing:1px;border:1px solid #00cc6644">✓ PAINEL VÁLIDO ATÉ ${fmtExp}</span>`;
                 }
                 banner.style.display = 'block';
             }
         }
-        // Configura seletor de perfil de usuÃ¡rio
+        // Configura seletor de perfil de usuário
         setupUserRoleSelector();
-        // Mostra onboarding no primeiro acesso (nÃ£o mostra para master)
+        // Mostra onboarding no primeiro acesso (não mostra para master)
         if (user.firstLogin && user.role !== 'master') {
             document.getElementById('modalOnboarding').style.display = 'flex';
         }
@@ -480,11 +480,11 @@ async function deleteServer(id, name) {
     } catch (e) { alert('\u274c Erro ao remover servidor.'); }
 }
 
-/* ===== CRIAR USUÃRIO REVENDEDOR ===== */
+/* ===== CRIAR USUÁRIO REVENDEDOR ===== */
 function setupUserRoleSelector() {
     const roleEl = document.getElementById('nu_role');
     if (!roleEl) return;
-    // Ocultar opÃ§Ã£o Admin se nÃ£o for master
+    // Ocultar opção Admin se não for master
     if (!_isMaster) {
         const adminOpt = roleEl.querySelector('option[value="admin"]');
         if (adminOpt) adminOpt.remove();
@@ -566,7 +566,7 @@ async function createUserReseller() {
 function onNuRoleChange() {
     const role = document.getElementById('nu_role')?.value || 'personal';
     const planWrap = document.getElementById('nu_plan_wrap');
-    // Plano obrigatÃ³rio para personal; opcional (mas exibido) para admin
+    // Plano obrigatório para personal; opcional (mas exibido) para admin
     if (planWrap) planWrap.style.display = ['personal', 'admin'].includes(role) ? '' : 'none';
     if (['personal', 'admin'].includes(role)) {
         const current = document.getElementById('nu_accessPlan')?.value || '6m';
@@ -583,17 +583,17 @@ async function loadUsers() {
         if (!tb) return;
         tb.innerHTML = users.map(u => {
             const isExpired = u.panelExpiry && new Date(u.panelExpiry) < new Date();
-            const expDate   = u.panelExpiry ? new Date(u.panelExpiry).toLocaleDateString('pt-BR') : 'â€”';
+            const expDate   = u.panelExpiry ? new Date(u.panelExpiry).toLocaleDateString('pt-BR') : '—';
             const expBadge  = u.role === 'personal'
                 ? (isExpired
-                    ? '<span class="badge badge-pendente" style="font-size:9px">âš  EXPIRADO</span>'
-                    : '<span class="badge badge-pago" style="font-size:9px">âœ“ ATIVO</span>')
-                : 'â€”';
-            const planLabel = u.role === 'personal' ? (u.panelPlan || 'STANDARD') : 'â€”';
+                    ? '<span class="badge badge-pendente" style="font-size:9px">⚠ EXPIRADO</span>'
+                    : '<span class="badge badge-pago" style="font-size:9px">✓ ATIVO</span>')
+                : '—';
+            const planLabel = u.role === 'personal' ? (u.panelPlan || 'STANDARD') : '—';
             return `<tr>
-                <td>${u.username}${u.firstLogin ? ' <span style="font-size:10px;color:#ff9800">â—PRIMEIRO ACESSO</span>' : ''}</td>
+                <td>${u.username}${u.firstLogin ? ' <span style="font-size:10px;color:#ff9800">●PRIMEIRO ACESSO</span>' : ''}</td>
                 <td><span class="badge ${u.role === 'personal' ? 'badge-pendente' : 'badge-pago'}">${u.role.toUpperCase()}</span></td>
-                <td>${u.resellerId || 'â€”'}</td>
+                <td>${u.resellerId || '—'}</td>
                 <td>${planLabel}</td>
                 <td>${expDate} ${expBadge}</td>
                 <td style="white-space:nowrap">
@@ -611,22 +611,22 @@ function closeOnboarding() {
     fetch('/auth/first-login-done', { method: 'POST', credentials: 'include' }).catch(() => {});
 }
 
-/* ===== EXCLUIR USUÃRIO ===== */
+/* ===== EXCLUIR USUÁRIO ===== */
 async function deleteUser(userId, username) {
-    if (!confirm('Excluir o acesso de "' + username + '"?\nEssa aÃ§Ã£o nÃ£o pode ser desfeita.')) return;
+    if (!confirm('Excluir o acesso de "' + username + '"?\nEssa ação não pode ser desfeita.')) return;
     try {
         const res = await fetch('/auth/users/' + userId, {
             method: 'DELETE', credentials: 'include'
         });
         const data = await res.json();
         if (!res.ok) { alert('\u274c ' + (data.error || 'Erro')); return; }
-        showFlash('\u2705 Acesso de "' + username + '" excluÃ­do.');
+        showFlash('\u2705 Acesso de "' + username + '" excluído.');
         loadUsers();
     } catch (e) { alert('\u274c Erro ao excluir.'); }
 }
 
 
-/* ===== RESET SENHA DE USUÃRIO ===== */
+/* ===== RESET SENHA DE USUÁRIO ===== */
 let _resetLinkUrl = '';
 async function generateUserResetToken(userId, username) {
     if (!confirm('Gerar link de reset de senha para "' + username + '"?\nO link expira em 24 horas.')) return;
@@ -645,7 +645,7 @@ async function generateUserResetToken(userId, username) {
 
 function copyResetLink() {
     navigator.clipboard.writeText(_resetLinkUrl).then(() => {
-        showFlash('\u2705 Link copiado! Envie para o usuÃ¡rio via WhatsApp.');
+        showFlash('\u2705 Link copiado! Envie para o usuário via WhatsApp.');
     }).catch(() => {
         document.getElementById('resetLinkInput').select();
         document.execCommand('copy');
@@ -737,11 +737,11 @@ async function toggleClientStatus(id, btn) {
 }
 
 async function deleteClientConfirm(id, name) {
-    if (!confirm('Excluir o cliente "' + name + '"?\nEssa aÃ§Ã£o nÃ£o pode ser desfeita.')) return;
+    if (!confirm('Excluir o cliente "' + name + '"?\nEssa ação não pode ser desfeita.')) return;
     try {
         const res = await fetch('/clients/' + id, { method: 'DELETE', credentials: 'include' });
         if (!res.ok) { const d = await res.json(); alert('\u274c ' + (d.error || 'Erro')); return; }
-        showFlash('\u2705 Cliente "' + name + '" excluÃ­do.');
+        showFlash('\u2705 Cliente "' + name + '" excluído.');
         loadClients();
         loadMetrics();
     } catch (e) { alert('\u274c Erro ao excluir cliente.'); }
@@ -870,7 +870,7 @@ async function renewClient() {
     } catch (e) { alert('\u274c Erro ao renovar cliente.'); }
 }
 
-/* ===== REVENDAS â€” FORMULÃRIO DINÃ‚MICO ===== */
+/* ===== REVENDAS — FORMULÁRIO DINÂMICO ===== */
 function isMensalista() {
     return document.getElementById('r_type').value === 'MEN';
 }
@@ -1026,7 +1026,7 @@ async function loadResellers() {
                 const diff = Math.ceil((exp - today2) / 86400000);
                 const expStr = exp.toLocaleDateString('pt-BR');
                 const cor = diff <= 5 ? '#ff9800' : '#00cc66';
-                planHtml = `<span class="badge" style="background:${cor};color:#000;font-size:10px">ATIVO</span><br><span style="font-size:10px;color:#aaa">${expStr}${diff <= 5 ? ' âš ' : ''}</span><br>`;
+                planHtml = `<span class="badge" style="background:${cor};color:#000;font-size:10px">ATIVO</span><br><span style="font-size:10px;color:#aaa">${expStr}${diff <= 5 ? ' ⚠' : ''}</span><br>`;
             } else if (r.planExpiresAt && !r.planActive) {
                 planHtml = `<span class="badge badge-pendente" style="font-size:10px">EXPIRADO</span><br>`;
             } else {
@@ -1092,7 +1092,7 @@ function openPlanModal(id, name, isActive, expiresAt) {
         const exp = new Date(expiresAt + 'T00:00:00');
         const diff = Math.ceil((exp - new Date()) / 86400000);
         const cor = diff <= 5 ? '#ff9800' : '#00cc66';
-        statusEl.innerHTML = `Status: <strong style="color:${cor}">ATIVO</strong> &nbsp; Vence: <strong>${exp.toLocaleDateString('pt-BR')}</strong>${diff <= 5 ? ' <span style="color:#ff9800">âš  ' + diff + ' dia(s)</span>' : ''}`;
+        statusEl.innerHTML = `Status: <strong style="color:${cor}">ATIVO</strong> &nbsp; Vence: <strong>${exp.toLocaleDateString('pt-BR')}</strong>${diff <= 5 ? ' <span style="color:#ff9800">⚠ ' + diff + ' dia(s)</span>' : ''}`;
     } else if (!isActive && expiresAt) {
         const exp = new Date(expiresAt + 'T00:00:00');
         statusEl.innerHTML = `Status: <strong style="color:#f44">EXPIRADO</strong> &nbsp; Venceu: <strong>${exp.toLocaleDateString('pt-BR')}</strong>`;
@@ -1222,7 +1222,7 @@ async function deleteReseller(id, name) {
     } catch (e) { alert('\u274c Erro ao excluir revenda.'); }
 }
 
-/* ===== MÃ‰TRICAS ===== */
+/* ===== MÉTRICAS ===== */
 let financeChartInstance = null;
 
 async function loadMetrics() {
@@ -1235,7 +1235,7 @@ async function loadMetrics() {
         ['m_cost','f_cost'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = fmt(data.cost); });
         ['m_profit','f_profit'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = fmt(data.profit); });
 
-        // Novas mÃ©tricas
+        // Novas métricas
         const mMargin    = document.getElementById('m_margin');
         const mProjected = document.getElementById('m_projected');
         if (mMargin)    mMargin.textContent    = (data.margin || 0) + '%';
@@ -1257,7 +1257,7 @@ async function loadMetrics() {
         renderCostList('costList');
         renderCostList('costListFin');
 
-        // Tabela: Balanço Mensal por Servidor
+        // Tabela: Balan�o Mensal por Servidor
         const srvBalBody = document.getElementById('serverBalanceBody');
         if (srvBalBody) {
             const details = data.serverDetails || [];
@@ -1312,7 +1312,7 @@ async function loadMetrics() {
             rkEl.innerHTML = '';
             if (data.resellerRanking && data.resellerRanking.length) {
                 data.resellerRanking.forEach((r, i) => {
-                    const medal = i === 0 ? 'ðŸ¥‡' : i === 1 ? 'ðŸ¥ˆ' : i === 2 ? 'ðŸ¥‰' : `${i+1}.`;
+                    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
                     const profitColor = r.profit >= 0 ? 'var(--badge-ok-color, #00cc66)' : '#ff4444';
                     rkEl.innerHTML += `<div class="cost-item">${medal} ${r.name} <small style="color:#666">(${r.type})</small><span style="color:${profitColor}">${fmt(r.profit)} &nbsp;<small style="color:#666">/ ${r.ativos} ativos</small></span></div>`;
                 });
@@ -1322,7 +1322,7 @@ async function loadMetrics() {
         }
 
         renderChart(data);
-    } catch (e) { console.error('Erro ao carregar mÃ©tricas', e); }
+    } catch (e) { console.error('Erro ao carregar métricas', e); }
 }
 
 
@@ -1372,7 +1372,7 @@ async function loadExpiringSoon() {
             const diff = Math.ceil((d - today) / 86400000);
             return `<div class="alert-item"><span class="alert-name">${c.name}</span><span class="alert-days ${diff<=2?'urgent':''}">&#9200; ${diff===0?'HOJE':diff+'d'}</span></div>`;
         }).join('') : '<span class="empty-alert">Nenhum nos pr\u00f3ximos 7 dias</span>';
-        /* Revendas â€” acerto por servidor */
+        /* Revendas — acerto por servidor */
         const rr = await fetch('/resellers', { credentials: 'include' });
         const resellers = await rr.json();
         const elR = document.getElementById('alertResellers');
@@ -1402,7 +1402,7 @@ async function loadExpiringSoon() {
 
 /* ===== EXPORTAR CSV ===== */
 function exportClientesCSV() {
-    if (!_clientMap.size) { showFlash('âš  Nenhum cliente para exportar.'); return; }
+    if (!_clientMap.size) { showFlash('⚠ Nenhum cliente para exportar.'); return; }
     const cols = ['Nome','Usuario','WhatsApp','Servidor','App','Plano (dias)','Valor','Custo','Inicio','Vencimento','Status'];
     const rows = [..._clientMap.values()].map(c => [
         c.name || '',
@@ -1426,7 +1426,7 @@ function exportClientesCSV() {
     document.body.appendChild(a); a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showFlash(`âœ… ${_clientMap.size} cliente(s) exportados!`);
+    showFlash(`✅ ${_clientMap.size} cliente(s) exportados!`);
 }
 
 /* ===== INIT ===== */
@@ -1438,7 +1438,7 @@ window.onload = async () => {
     loadClients();
     loadExpiringSoon();
     loadLicenseStatus();
-    // Financeiro disponÃ­vel para todos â€” dados filtrados por ownerId no backend
+    // Financeiro disponível para todos — dados filtrados por ownerId no backend
     loadMetrics();
     addServer();
     loadResellers();

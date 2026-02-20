@@ -3,8 +3,13 @@ const dayjs = require('dayjs');
 const { audit } = require('../middlewares/authMiddleware');
 const { Op } = require('sequelize');
 
-/* Helper: para personal e admin, filtra por userId = sessionUser.id (isolamento exclusivo por usuário) */
+/* Helper: filtra por userId de acordo com o role
+   - master: vê seus próprios registros OU registros legados sem userId (compatibilidade retroativa)
+   - personal/admin: vê exclusivamente seus próprios registros */
 function personalWhere(sessionUser, base = {}) {
+    if (sessionUser?.role === 'master') {
+        return { ...base, [Op.or]: [{ userId: sessionUser.id }, { userId: null }] };
+    }
     if (['personal', 'admin'].includes(sessionUser?.role)) {
         return { ...base, userId: sessionUser.id };
     }
@@ -20,9 +25,9 @@ exports.create = async (req, res) => {
 
     if (!tenantId) return res.status(403).json({ error: 'Tenant não identificado' });
 
-    // Para personal e admin: userId = id único do usuário logado (isolamento exclusivo)
-    const userId = ['personal', 'admin'].includes(sessionUser?.role) ? sessionUser.id : null;
-    // resellerId fica nulo para personal/admin (userId já garante isolamento)
+    // userId sempre = id do usuário logado (garante isolamento para todos os roles)
+    const userId = sessionUser?.id || null;
+    // resellerId fica nulo para personal/admin; master pode vincular a um revendedor
     const resellerId = ['personal', 'admin'].includes(sessionUser?.role) ? null : (req.body.resellerId || null);
 
     const client = await Client.create({

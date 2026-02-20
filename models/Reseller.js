@@ -36,6 +36,11 @@ const Reseller = sequelize.define('Reseller', {
     planValue: {
         type: DataTypes.DECIMAL(10, 2),
         defaultValue: 20.00
+    },
+    // Quando criada por um usuário revendedor, guarda o resellerId do dono
+    ownerId: {
+        type: DataTypes.INTEGER,
+        allowNull: true
     }
 });
 

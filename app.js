@@ -354,6 +354,7 @@ sequelize.sync().then(async () => {
     if (process.env.DATABASE_URL) {
         try {
             await sequelize.query(`ALTER TABLE IF EXISTS "Clients" ADD COLUMN IF NOT EXISTS "resellerId" INTEGER;`);
+            await sequelize.query(`ALTER TABLE IF EXISTS "Resellers" ADD COLUMN IF NOT EXISTS "ownerId" INTEGER;`);
         } catch (_) { /* coluna já existe ou SQLite — ignorar */ }
     }
     await ensureMasterAdmin();

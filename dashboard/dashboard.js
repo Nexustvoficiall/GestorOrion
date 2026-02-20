@@ -276,12 +276,11 @@ async function loadUserInfo() {
             const tab = document.getElementById('tabAdmin');
             if (tab) tab.style.display = '';
         }
-        // Revendedor: esconder abas que não fazem sentido para ele
+        // Revendedor: esconder apenas financeiro e seções admin-only
         if (_isReseller) {
-            ['revendas','servidores','financeiro'].forEach(t => {
-                const btn = document.querySelector(`[data-tab="${t}"]`);
-                if (btn) btn.style.display = 'none';
-            });
+            // Esconde só a aba Financeiro (revendas e servidores estão liberadas)
+            const tabFin = document.querySelector('[data-tab="financeiro"]');
+            if (tabFin) tabFin.style.display = 'none';
             // Esconder seções do painel que são admin-only
             ['resellerRanking','costList'].forEach(id => {
                 const el = document.getElementById(id)?.closest('section.panel');
@@ -1179,8 +1178,9 @@ window.onload = async () => {
     loadExpiringSoon();
     loadLicenseStatus();
     if (!_isReseller) {
-        addServer();
-        loadResellers();
         loadMetrics();
     }
+    // Revendas e Servidores disponíveis para todos (filtrados por ownerId no backend)
+    addServer();
+    loadResellers();
 };

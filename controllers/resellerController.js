@@ -8,7 +8,11 @@ exports.create = async (req, res) => {
         const tenantId = req.tenantId;
         if (!tenantId) return res.status(403).json({ error: 'Tenant não identificado' });
 
-        const reseller = await Reseller.create({ name, type, settleDate: settleDate || null, whatsapp: whatsapp || null, paymentStatus: 'PENDENTE', tenantId });
+        const sessionUser = req.session?.user;
+        const ownerId = sessionUser?.role === 'reseller' && sessionUser?.resellerId
+            ? sessionUser.resellerId : null;
+
+        const reseller = await Reseller.create({ name, type, settleDate: settleDate || null, whatsapp: whatsapp || null, paymentStatus: 'PENDENTE', tenantId, ownerId });
 
         if (servers && servers.length) {
             for (const s of servers) {
@@ -37,8 +41,13 @@ exports.list = async (req, res) => {
     try {
         const tenantId = req.tenantId;
         if (!tenantId) return res.status(403).json({ error: 'Tenant não identificado' });
+        const sessionUser = req.session?.user;
+        const where = { tenantId };
+        if (sessionUser?.role === 'reseller' && sessionUser?.resellerId) {
+            where.ownerId = sessionUser.resellerId;
+        }
         const data = await Reseller.findAll({
-            where: { tenantId },
+            where,
             include: [{ model: ResellerServer, as: 'servers' }],
             order: [['createdAt', 'DESC']]
         });
@@ -54,8 +63,11 @@ exports.update = async (req, res) => {
         const { id } = req.params;
         const { name, type, settleDate, paymentStatus, whatsapp, servers } = req.body;
         const tenantId = req.tenantId;
+        const sessionUser = req.session?.user;
+        const where = { id, tenantId };
+        if (sessionUser?.role === 'reseller' && sessionUser?.resellerId) where.ownerId = sessionUser.resellerId;
 
-        const reseller = await Reseller.findOne({ where: { id, tenantId } });
+        const reseller = await Reseller.findOne({ where });
         if (!reseller) return res.status(404).json({ error: 'Revenda não encontrada' });
 
         await reseller.update({ name, type, settleDate: settleDate || null, paymentStatus, whatsapp: whatsapp || null });
@@ -89,7 +101,10 @@ exports.updatePayment = async (req, res) => {
         const { id } = req.params;
         const { paymentStatus } = req.body;
         const tenantId = req.tenantId;
-        await Reseller.update({ paymentStatus }, { where: { id, tenantId } });
+        const sessionUser = req.session?.user;
+        const where = { id, tenantId };
+        if (sessionUser?.role === 'reseller' && sessionUser?.resellerId) where.ownerId = sessionUser.resellerId;
+        await Reseller.update({ paymentStatus }, { where });
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: 'Erro ao atualizar pagamento' });
@@ -102,8 +117,11 @@ exports.setPlan = async (req, res) => {
         const { id } = req.params;
         const { action, months, planValue } = req.body; // action: 'activate' | 'renew' | 'cancel'
         const tenantId = req.tenantId;
+        const sessionUser = req.session?.user;
+        const planWhere = { id, tenantId };
+        if (sessionUser?.role === 'reseller' && sessionUser?.resellerId) planWhere.ownerId = sessionUser.resellerId;
 
-        const reseller = await Reseller.findOne({ where: { id, tenantId } });
+        const reseller = await Reseller.findOne({ where: planWhere });
         if (!reseller) return res.status(404).json({ error: 'Revenda não encontrada' });
 
         if (action === 'cancel') {
@@ -137,7 +155,10 @@ exports.remove = async (req, res) => {
     try {
         const { id } = req.params;
         const tenantId = req.tenantId;
-        const reseller = await Reseller.findOne({ where: { id, tenantId } });
+        const sessionUser = req.session?.user;
+        const where = { id, tenantId };
+        if (sessionUser?.role === 'reseller' && sessionUser?.resellerId) where.ownerId = sessionUser.resellerId;
+        const reseller = await Reseller.findOne({ where });
         if (!reseller) return res.status(404).json({ error: 'Revenda não encontrada' });
         await ResellerServer.destroy({ where: { resellerId: id, tenantId } });
         await reseller.destroy();
@@ -153,7 +174,10 @@ exports.remove = async (req, res) => {
 exports.toggleStatus = async (req, res) => {
     try {
         const tenantId = req.tenantId;
-        const r = await Reseller.findOne({ where: { id: req.params.id, tenantId } });
+        const sessionUser = req.session?.user;
+        const where = { id: req.params.id, tenantId };
+        if (sessionUser?.role === 'reseller' && sessionUser?.resellerId) where.ownerId = sessionUser.resellerId;
+        const r = await Reseller.findOne({ where });
         if (!r) return res.status(404).json({ error: 'Revenda não encontrada' });
         const newStatus = r.status === 'ATIVO' ? 'INATIVO' : 'ATIVO';
         await r.update({ status: newStatus });

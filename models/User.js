@@ -40,7 +40,11 @@ const User = sequelize.define('User', {
     },
     panelExpiry: {
         type: DataTypes.DATE,
-        allowNull: true // null = sem expiração (admin/master)
+        allowNull: true // null = sem expiração (master)
+    },
+    createdBy: {
+        type: DataTypes.INTEGER,
+        allowNull: true // id do user que criou este usuário (para isolamento de lista)
     }
 });
 

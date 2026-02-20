@@ -278,6 +278,26 @@ async function loadUserInfo() {
         }
         // Personal: painel completo com dados isolados — não esconder nenhum card
         // (backend já filtra pelos dados exclusivos do usuário)
+
+        // Exibir banner de validade do painel para personal e admin
+        if (!_isMaster && user.panelExpiry) {
+            const exp     = new Date(user.panelExpiry);
+            const today   = new Date();
+            const diffMs  = exp - today;
+            const daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+            const fmtExp  = exp.toLocaleDateString('pt-BR');
+            const banner  = document.getElementById('licenseBanner');
+            if (banner) {
+                if (daysLeft <= 0) {
+                    banner.innerHTML = `<span style="background:#ff2222;color:#fff;padding:3px 10px;font-family:'Orbitron',sans-serif;font-size:9px;letter-spacing:1px">⚠ SEU PAINEL EXPIROU EM ${fmtExp}</span>`;
+                } else if (daysLeft <= 7) {
+                    banner.innerHTML = `<span style="background:#ffaa00;color:#000;padding:3px 10px;font-family:'Orbitron',sans-serif;font-size:9px;letter-spacing:1px">⚠ PAINEL VENCE EM ${daysLeft}d (${fmtExp})</span>`;
+                } else {
+                    banner.innerHTML = `<span style="background:#1a2a1a;color:#00cc66;padding:3px 10px;font-family:'Orbitron',sans-serif;font-size:9px;letter-spacing:1px;border:1px solid #00cc6644">✓ PAINEL VÁLIDO ATÉ ${fmtExp}</span>`;
+                }
+                banner.style.display = 'block';
+            }
+        }
         // Configura seletor de perfil de usuário
         setupUserRoleSelector();
         // Mostra onboarding no primeiro acesso (não mostra para master)
@@ -441,7 +461,7 @@ async function createUserReseller() {
         const expMsg = data.panelExpiry
             ? new Date(data.panelExpiry).toLocaleDateString('pt-BR')
             : '\u2014';
-        showFlash('\u2705 Acesso criado! Usu\u00e1rio: ' + username + (role === 'personal' ? ' | Expira: ' + expMsg : ''));
+        showFlash('\u2705 Acesso criado! Usu\u00e1rio: ' + username + (data.panelExpiry ? ' | Expira: ' + expMsg : ''));
         document.getElementById('nu_username').value = '';
         document.getElementById('nu_password').value = '';
         document.getElementById('nu_role').value = 'personal';
@@ -454,8 +474,9 @@ async function createUserReseller() {
 function onNuRoleChange() {
     const role = document.getElementById('nu_role')?.value || 'personal';
     const planWrap = document.getElementById('nu_plan_wrap');
-    if (planWrap) planWrap.style.display = (role === 'personal') ? '' : 'none';
-    if (role === 'personal') {
+    // Plano obrigatório para personal; opcional (mas exibido) para admin
+    if (planWrap) planWrap.style.display = ['personal', 'admin'].includes(role) ? '' : 'none';
+    if (['personal', 'admin'].includes(role)) {
         const current = document.getElementById('nu_accessPlan')?.value || '6m';
         updatePlanPreview(current);
     }

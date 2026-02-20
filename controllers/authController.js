@@ -29,8 +29,8 @@ exports.login = async (req, res) => {
         const valid = await bcrypt.compare(password, user.password);
         if (!valid) return res.status(401).json({ error: 'Senha inválida' });
 
-        // Bloqueia personal com licença de painel expirada
-        if (user.role === 'personal' && user.panelExpiry && new Date(user.panelExpiry) < new Date()) {
+        // Bloqueia personal OU admin com licença de painel expirada
+        if (['personal', 'admin'].includes(user.role) && user.panelExpiry && new Date(user.panelExpiry) < new Date()) {
             return res.status(403).json({
                 error: 'PAINEL_EXPIRADO',
                 message: 'Sua licença de acesso ao painel expirou. Renove com seu administrador.'
@@ -38,12 +38,13 @@ exports.login = async (req, res) => {
         }
 
         req.session.user = {
-            id:         user.id,
-            username:   user.username,
-            role:       user.role,
-            resellerId: user.resellerId,
-            tenantId:   user.tenantId || null,
-            firstLogin: user.firstLogin !== false  // true no primeiro acesso
+            id:          user.id,
+            username:    user.username,
+            role:        user.role,
+            resellerId:  user.resellerId,
+            tenantId:    user.tenantId || null,
+            firstLogin:  user.firstLogin !== false,
+            panelExpiry: user.panelExpiry || null  // inclui na sessão para exibir no painel
         };
 
         await audit(req, 'LOGIN', 'User', user.id, { username: user.username });
@@ -89,9 +90,9 @@ exports.createReseller = async (req, res) => {
         const callerRole = req.session?.user?.role;
         const allowedRole = (callerRole === 'master' && role === 'admin') ? 'admin' : 'personal';
 
-        // Calcular validade do painel apenas para personal
+        // Calcular validade do painel para personal e admin (se accessPlan informado)
         let panelExpiry = null;
-        if (allowedRole === 'personal' && accessPlan && PLAN_DAYS[accessPlan]) {
+        if (accessPlan && PLAN_DAYS[accessPlan]) {
             panelExpiry = new Date();
             panelExpiry.setDate(panelExpiry.getDate() + PLAN_DAYS[accessPlan]);
         }
@@ -99,8 +100,9 @@ exports.createReseller = async (req, res) => {
         const user = await User.create({
             username, password: hash, role: allowedRole,
             resellerId, tenantId,
-            panelPlan: allowedRole === 'personal' ? 'STANDARD' : null,
-            panelExpiry
+            panelPlan: 'STANDARD',
+            panelExpiry,
+            createdBy: req.session?.user?.id || null  // rastreia quem criou
         });
 
         res.json({ ok: true, id: user.id, role: allowedRole, panelExpiry });
@@ -166,11 +168,17 @@ exports.changePassword = async (req, res) => {
 };
 
 exports.listUsers = async (req, res) => {
-    const tenantId = req.session?.user?.tenantId;
-    const where = tenantId ? { tenantId } : {};
+    const callerRole = req.session?.user?.role;
+    const callerId   = req.session?.user?.id;
+    const tenantId   = req.session?.user?.tenantId;
+
+    // Master vê todos do tenant; admin vê apenas os que ele criou
+    let where = tenantId ? { tenantId } : {};
+    if (callerRole === 'admin') where.createdBy = callerId;
+
     const users = await User.findAll({
         where,
-        attributes: ['id', 'username', 'role', 'resellerId', 'firstLogin', 'panelPlan', 'panelExpiry']
+        attributes: ['id', 'username', 'role', 'resellerId', 'firstLogin', 'panelPlan', 'panelExpiry', 'createdBy']
     });
     res.json(users);
 };

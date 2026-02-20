@@ -99,7 +99,7 @@
             const data = await res.json();
 
             if (!res.ok) {
-                showError(data.error || 'Credenciais inválidas.');
+                showError(data.message || data.error || 'Credenciais inválidas.');
             } else {
                 txt.textContent = '✔ ACESSO LIBERADO';
                 btn.style.background = '#006600';

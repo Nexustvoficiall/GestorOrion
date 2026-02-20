@@ -50,8 +50,8 @@ async function checkLicense(req, res, next) {
 
         req.tenant = tenant;
 
-        // Verifica validade do painel do personal
-        if (req.session?.user?.role === 'personal' && req.session?.user?.id) {
+        // Verifica validade do painel do personal ou admin
+        if (['personal', 'admin'].includes(req.session?.user?.role) && req.session?.user?.id) {
             const usr = await User.findByPk(req.session.user.id, { attributes: ['panelExpiry'] });
             if (usr && usr.panelExpiry && new Date(usr.panelExpiry) < new Date()) {
                 return res.status(403).json({
@@ -82,9 +82,9 @@ async function checkLicensePage(req, res, next) {
         const expired = !tenant.isActive ||
             (tenant.licenseExpiration && new Date(tenant.licenseExpiration + 'T23:59:59') < new Date());
 
-        // Verifica validade do painel do revendedor
+        // Verifica validade do painel do personal ou admin
         let panelExpired = false;
-        if (!expired && req.session?.user?.role === 'personal' && req.session?.user?.id) {
+        if (!expired && ['personal', 'admin'].includes(req.session?.user?.role) && req.session?.user?.id) {
             const usr = await User.findByPk(req.session.user.id, { attributes: ['panelExpiry'] });
             panelExpired = !!(usr && usr.panelExpiry && new Date(usr.panelExpiry) < new Date());
         }

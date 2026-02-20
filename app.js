@@ -357,6 +357,8 @@ sequelize.sync().then(async () => {
             await sequelize.query(`ALTER TABLE IF EXISTS "Resellers" ADD COLUMN IF NOT EXISTS "ownerId" INTEGER;`);
         } catch (_) { /* coluna já existe ou SQLite — ignorar */ }
     }
+    // Migra role 'reseller' → 'personal' (renomeio de perfil) — roda em PG e SQLite
+    try { await sequelize.query(`UPDATE "Users" SET "role" = 'personal' WHERE "role" = 'reseller'`); } catch (_) {}
     await ensureMasterAdmin();
     const { startCronJobs } = require('./services/cronService');
     startCronJobs();

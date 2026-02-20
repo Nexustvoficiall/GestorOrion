@@ -16,7 +16,7 @@ const User = sequelize.define('User', {
     },
     role: {
         type: DataTypes.STRING,
-        defaultValue: 'reseller' // 'master' | 'admin' | 'reseller'
+        defaultValue: 'personal' // 'master' | 'admin' | 'personal'
     },
     resellerId: {
         type: DataTypes.INTEGER,

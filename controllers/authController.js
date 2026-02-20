@@ -29,8 +29,8 @@ exports.login = async (req, res) => {
         const valid = await bcrypt.compare(password, user.password);
         if (!valid) return res.status(401).json({ error: 'Senha inválida' });
 
-        // Bloqueia revendedor com licença de painel expirada
-        if (user.role === 'reseller' && user.panelExpiry && new Date(user.panelExpiry) < new Date()) {
+        // Bloqueia personal com licença de painel expirada
+        if (user.role === 'personal' && user.panelExpiry && new Date(user.panelExpiry) < new Date()) {
             return res.status(403).json({
                 error: 'PAINEL_EXPIRADO',
                 message: 'Sua licença de acesso ao painel expirou. Renove com seu administrador.'
@@ -85,13 +85,13 @@ exports.createReseller = async (req, res) => {
         if (exists) return res.status(400).json({ error: 'Usuário já existe' });
 
         const hash = await bcrypt.hash(password, 10);
-        // master pode criar qualquer role; admin só pode criar reseller
+        // master pode criar admin ou personal; admin só pode criar personal
         const callerRole = req.session?.user?.role;
-        const allowedRole = (callerRole === 'master' && role === 'admin') ? 'admin' : 'reseller';
+        const allowedRole = (callerRole === 'master' && role === 'admin') ? 'admin' : 'personal';
 
-        // Calcular validade do painel apenas para revendedores
+        // Calcular validade do painel apenas para personal
         let panelExpiry = null;
-        if (allowedRole === 'reseller' && accessPlan && PLAN_DAYS[accessPlan]) {
+        if (allowedRole === 'personal' && accessPlan && PLAN_DAYS[accessPlan]) {
             panelExpiry = new Date();
             panelExpiry.setDate(panelExpiry.getDate() + PLAN_DAYS[accessPlan]);
         }
@@ -99,7 +99,7 @@ exports.createReseller = async (req, res) => {
         const user = await User.create({
             username, password: hash, role: allowedRole,
             resellerId, tenantId,
-            panelPlan: allowedRole === 'reseller' ? 'STANDARD' : null,
+            panelPlan: allowedRole === 'personal' ? 'STANDARD' : null,
             panelExpiry
         });
 

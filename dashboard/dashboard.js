@@ -264,9 +264,9 @@ async function loadUserInfo() {
         const user = await res.json();
         _isAdmin    = user.role === 'admin' || user.role === 'master';
         _isMaster   = user.role === 'master';
-        _isReseller = user.role === 'reseller';
+        _isReseller = user.role === 'personal';
         document.getElementById('topUsername').textContent = user.username;
-        const roleLabel = _isMaster ? 'MASTER' : (_isAdmin ? 'ADMINISTRADOR' : 'REVENDEDOR');
+        const roleLabel = _isMaster ? 'MASTER' : (_isAdmin ? 'ADMINISTRADOR' : 'PESSOAL');
         document.getElementById('topRole').textContent = roleLabel;
         if (_isMaster) document.getElementById('topRole').style.color = 'var(--accent2)';
         // Preencher campo de usuário na aba Perfil
@@ -391,7 +391,7 @@ function setupUserRoleSelector() {
     // Mostrar/ocultar campo de revenda conforme perfil
     roleEl.addEventListener('change', () => {
         const wrap = document.getElementById('nu_reseller_wrap');
-        if (wrap) wrap.style.display = roleEl.value === 'reseller' ? '' : 'none';
+        if (wrap) wrap.style.display = roleEl.value === 'personal' ? '' : 'none';
     });
 }
 
@@ -437,7 +437,7 @@ function updatePlanPreview(plan) {
 async function createUserReseller() {
     const username   = document.getElementById('nu_username').value.trim();
     const password   = document.getElementById('nu_password').value;
-    const role       = document.getElementById('nu_role')?.value || 'reseller';
+    const role       = document.getElementById('nu_role')?.value || 'personal';
     const accessPlan = document.getElementById('nu_accessPlan')?.value || '1m';
     if (!username || !password) { alert('Informe usu\u00e1rio e senha!'); return; }
     try {
@@ -452,10 +452,10 @@ async function createUserReseller() {
         const expMsg = data.panelExpiry
             ? new Date(data.panelExpiry).toLocaleDateString('pt-BR')
             : '\u2014';
-        showFlash('\u2705 Acesso criado! Usu\u00e1rio: ' + username + (role === 'reseller' ? ' | Expira: ' + expMsg : ''));
+        showFlash('\u2705 Acesso criado! Usu\u00e1rio: ' + username + (role === 'personal' ? ' | Expira: ' + expMsg : ''));
         document.getElementById('nu_username').value = '';
         document.getElementById('nu_password').value = '';
-        document.getElementById('nu_role').value = 'reseller';
+        document.getElementById('nu_role').value = 'personal';
         onNuRoleChange();
         loadUsers();
     } catch (e) { alert('\u274c Erro ao criar acesso.'); }
@@ -463,10 +463,10 @@ async function createUserReseller() {
 
 // Mostra/oculta cards de plano conforme o perfil selecionado
 function onNuRoleChange() {
-    const role = document.getElementById('nu_role')?.value || 'reseller';
+    const role = document.getElementById('nu_role')?.value || 'personal';
     const planWrap = document.getElementById('nu_plan_wrap');
-    if (planWrap) planWrap.style.display = (role === 'reseller') ? '' : 'none';
-    if (role === 'reseller') {
+    if (planWrap) planWrap.style.display = (role === 'personal') ? '' : 'none';
+    if (role === 'personal') {
         const current = document.getElementById('nu_accessPlan')?.value || '6m';
         updatePlanPreview(current);
     }
@@ -482,15 +482,15 @@ async function loadUsers() {
         tb.innerHTML = users.map(u => {
             const isExpired = u.panelExpiry && new Date(u.panelExpiry) < new Date();
             const expDate   = u.panelExpiry ? new Date(u.panelExpiry).toLocaleDateString('pt-BR') : '—';
-            const expBadge  = u.role === 'reseller'
+            const expBadge  = u.role === 'personal'
                 ? (isExpired
                     ? '<span class="badge badge-pendente" style="font-size:9px">⚠ EXPIRADO</span>'
                     : '<span class="badge badge-pago" style="font-size:9px">✓ ATIVO</span>')
                 : '—';
-            const planLabel = u.role === 'reseller' ? (u.panelPlan || 'STANDARD') : '—';
+            const planLabel = u.role === 'personal' ? (u.panelPlan || 'STANDARD') : '—';
             return `<tr>
                 <td>${u.username}${u.firstLogin ? ' <span style="font-size:10px;color:#ff9800">●PRIMEIRO ACESSO</span>' : ''}</td>
-                <td><span class="badge ${u.role === 'reseller' ? 'badge-pendente' : 'badge-pago'}">${u.role.toUpperCase()}</span></td>
+                <td><span class="badge ${u.role === 'personal' ? 'badge-pendente' : 'badge-pago'}">${u.role.toUpperCase()}</span></td>
                 <td>${u.resellerId || '—'}</td>
                 <td>${planLabel}</td>
                 <td>${expDate} ${expBadge}</td>

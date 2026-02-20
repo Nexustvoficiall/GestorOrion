@@ -14,8 +14,8 @@ exports.create = async (req, res) => {
 
     if (!tenantId) return res.status(403).json({ error: 'Tenant não identificado' });
 
-    // Revendedor só pode criar clientes vinculados a si mesmo
-    const resellerId = sessionUser?.role === 'reseller' && sessionUser?.resellerId
+    // Personal só pode criar clientes vinculados a si mesmo
+    const resellerId = sessionUser?.role === 'personal' && sessionUser?.resellerId
         ? sessionUser.resellerId
         : (req.body.resellerId || null);
 
@@ -36,9 +36,9 @@ exports.list = async (req, res) => {
     const sessionUser = req.session?.user;
     if (!tenantId) return res.status(403).json({ error: 'Tenant não identificado' });
 
-    // Revendedor vê apenas seus próprios clientes
+    // Personal vê apenas seus próprios clientes
     const where = { tenantId };
-    if (sessionUser?.role === 'reseller' && sessionUser?.resellerId) {
+    if (sessionUser?.role === 'personal' && sessionUser?.resellerId) {
         where.resellerId = sessionUser.resellerId;
     }
 
@@ -50,7 +50,7 @@ exports.update = async (req, res) => {
     try {
         const sessionUser = req.session?.user;
         const where = { id: req.params.id, tenantId: req.tenantId };
-        if (sessionUser?.role === 'reseller' && sessionUser?.resellerId) {
+        if (sessionUser?.role === 'personal' && sessionUser?.resellerId) {
             where.resellerId = sessionUser.resellerId;
         }
         const client = await Client.findOne({ where });
@@ -68,7 +68,7 @@ exports.renew = async (req, res) => {
     try {
         const sessionUser = req.session?.user;
         const where = { id: req.params.id, tenantId: req.tenantId };
-        if (sessionUser?.role === 'reseller' && sessionUser?.resellerId) {
+        if (sessionUser?.role === 'personal' && sessionUser?.resellerId) {
             where.resellerId = sessionUser.resellerId;
         }
         const client = await Client.findOne({ where });
@@ -90,7 +90,7 @@ exports.toggleStatus = async (req, res) => {
     try {
         const sessionUser = req.session?.user;
         const where = { id: req.params.id, tenantId: req.tenantId };
-        if (sessionUser?.role === 'reseller' && sessionUser?.resellerId) {
+        if (sessionUser?.role === 'personal' && sessionUser?.resellerId) {
             where.resellerId = sessionUser.resellerId;
         }
         const client = await Client.findOne({ where });

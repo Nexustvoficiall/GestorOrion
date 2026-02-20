@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Gestor Orion">
     <meta name="theme-color" content="#e53935">
-    <meta name="description" content="Gestor IPTV SaaS — painel de controle para revendedores">
+    <meta name="description" content="Gestor IPTV SaaS â€” painel de controle para revendedores">
     <title>Gestor Orion</title>
     <link rel="manifest" href="/dashboard/manifest.json">
     <link rel="stylesheet" href="style.css?v=3">
@@ -49,7 +49,7 @@
     <button class="tab-btn"        data-tab="financeiro" onclick="switchTab('financeiro')">&#128202; FINANCEIRO</button>
     <button class="tab-btn"        data-tab="perfil"    onclick="switchTab('perfil')">&#9881; MEU PERFIL</button>
     <button class="tab-btn admin-tab" id="tabAdmin" data-tab="admin" onclick="switchTab('admin')" style="display:none">&#9873; ADMIN</button>
-    <button class="tab-btn" id="tabUsers" data-tab="users" onclick="switchTab('users')" style="display:none">&#128101; USUÁRIOS</button>
+    <button class="tab-btn" id="tabUsers" data-tab="users" onclick="switchTab('users')" style="display:none">&#128101; USUÃRIOS</button>
 </nav>
 
 <main>
@@ -218,6 +218,28 @@
         <h2>RESUMO FINANCEIRO</h2>
         <div class="chart-wrap"><canvas id="financeChart"></canvas></div>
     </section>
+    <!-- NOVO: Balanço Mensal por Servidor -->
+    <section class="panel">
+        <h2>&#128184; BALANÇO MENSAL POR SERVIDOR</h2>
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px">Receita gerada, custo a pagar e lucro de cada servidor no mês atual</p>
+        <div class="table-wrap">
+        <table id="serverBalanceTable">
+            <thead>
+                <tr>
+                    <th>SERVIDOR</th>
+                    <th style="text-align:center">ATIVOS</th>
+                    <th style="text-align:right">RECEITA (GANHO)</th>
+                    <th style="text-align:right">CUSTO (A PAGAR)</th>
+                    <th style="text-align:right">LUCRO</th>
+                    <th style="text-align:center">MARGEM</th>
+                </tr>
+            </thead>
+            <tbody id="serverBalanceBody">
+                <tr><td colspan="6" style="text-align:center;color:#555">Carregando...</td></tr>
+            </tbody>
+        </table>
+        </div>
+    </section>
     <section class="panel">
         <h2>GASTOS POR SERVIDOR</h2>
         <div id="costListFin" class="cost-list"></div>
@@ -245,7 +267,7 @@
                     <div id="logoPlaceholder" class="logo-placeholder">&#10022;</div>
                     <img id="logoPreviewImg" class="logo-preview" src="" alt="logo preview">
                     <div class="logo-actions">
-                        <label class="btn btn-sm" style="cursor:pointer;display:inline-block;padding:6px 14px;background:var(--accent3);border:1px solid var(--accent);color:#fff;font-size:10px;letter-spacing:1px;text-transform:uppercase;font-family:'Orbitron',sans-serif">
+                        <label class="btn btn-sm" style="cursor:pointer;display:inline-block;padding:6px 14px;background:var(--accent3);border:1px solid var(--accent);color:#fff;font-size:10px;letter-spacing:1px;text-transform:uppercase;font-family:'Rajdhani','Segoe UI',sans-serif">
                             &#128194; ESCOLHER
                             <input type="file" id="logoFileInput" accept="image/*" style="display:none" onchange="uploadLogo(this)">
                         </label>
@@ -254,12 +276,12 @@
                 </div>
             </div>
 
-            <!-- Nome de Usuário -->
+            <!-- Nome de UsuÃ¡rio -->
             <div class="perfil-card">
                 <h3>&#128100; Nome de Usu&aacute;rio</h3>
                 <div class="perfil-row">
                     <label>Usu&aacute;rio atual</label>
-                    <input id="usernameInput" placeholder="Novo nome de usuário" maxlength="40" autocomplete="off">
+                    <input id="usernameInput" placeholder="Novo nome de usuÃ¡rio" maxlength="40" autocomplete="off">
                 </div>
                 <div class="perfil-row">
                     <label>Confirmar com senha atual</label>
@@ -313,12 +335,12 @@
 
 <!-- ABA ADMIN -->
 <div id="tab-admin" class="tab-content">
-    <!-- Gestão de Licença -->
+    <!-- GestÃ£o de LicenÃ§a -->
     <section class="panel">
-        <h2>&#128273; LICENÇA DO SISTEMA</h2>
+        <h2>&#128273; LICENÃ‡A DO SISTEMA</h2>
         <div id="licenseInfo" style="margin-bottom:16px;padding:14px;border:1px solid var(--accent3);font-size:12px;letter-spacing:1px;line-height:2"></div>
         <div class="form-row">
-            <div class="field"><label>Validade da Licença</label><input id="lic_expiration" type="date"></div>
+            <div class="field"><label>Validade da LicenÃ§a</label><input id="lic_expiration" type="date"></div>
             <div class="field">
                 <label>Plano</label>
                 <select id="lic_plan">
@@ -334,10 +356,10 @@
                     <option value="0">BLOQUEADO</option>
                 </select>
             </div>
-            <div class="field btn-field"><button onclick="saveLicense()">SALVAR LICENÇA</button></div>
+            <div class="field btn-field"><button onclick="saveLicense()">SALVAR LICENÃ‡A</button></div>
         </div>
     </section>
-    <!-- Criar usuário revendedor -->
+    <!-- Criar usuÃ¡rio revendedor -->
     <section class="panel">
         <h2>&#128273; CRIAR ACESSO PARA REVENDEDOR</h2>
         <p class="panel-desc">Gere um login para um revendedor acessar o painel. Escolha o per&iacute;odo de licen&ccedil;a &mdash; apenas <strong>Plano Standard</strong> dispon&iacute;vel.</p>
@@ -355,7 +377,7 @@
             </div>
         </div>
 
-        <!-- Cards de plano (visíveis só para Revendedor) -->
+        <!-- Cards de plano (visÃ­veis sÃ³ para Revendedor) -->
         <div id="nu_plan_wrap" style="margin-top:18px">
             <label style="font-size:10px;letter-spacing:2px;color:var(--text-muted,#888);display:block;margin-bottom:10px">PLANO DE ACESSO AO PAINEL</label>
             <div class="plan-cards">
@@ -384,7 +406,7 @@
             </div>
             <input type="hidden" id="nu_accessPlan" value="6m">
 
-            <!-- Preview da licença -->
+            <!-- Preview da licenÃ§a -->
             <div id="nu_plan_preview" style="margin-top:14px;padding:12px 16px;border:1px solid var(--accent3,#0055cc);background:var(--accent-dim,#1a6fff11);font-size:11px;letter-spacing:1px;display:flex;gap:32px;align-items:center;flex-wrap:wrap">
                 <span>&#128197; <strong>IN&Iacute;CIO:</strong> <span id="prev_start"></span></span>
                 <span>&#9200; <strong>EXPIRA&Ccedil;&Atilde;O:</strong> <span id="prev_expiry" style="color:var(--accent2,#4499ff)"></span></span>
@@ -416,18 +438,18 @@
         </div>
         <div class="table-wrap">
         <table>
-            <thead><tr><th>Data/Hora</th><th>Usu&aacute;rio</th><th>Ação</th><th>Entidade</th><th>IP</th></tr></thead>
+            <thead><tr><th>Data/Hora</th><th>Usu&aacute;rio</th><th>AÃ§Ã£o</th><th>Entidade</th><th>IP</th></tr></thead>
             <tbody id="auditList"><tr><td colspan="5" style="text-align:center;color:#555">Clique em &#8635; para carregar</td></tr></tbody>
         </table>
         </div>
     </section>
 </div>
 
-<!-- ABA USUÁRIOS (somente master) -->
+<!-- ABA USUÃRIOS (somente master) -->
 <div id="tab-users" class="tab-content">
     <section class="panel">
         <h2>&#128101; ADMINISTRADORES DO SISTEMA</h2>
-        <p class="panel-desc" style="margin-bottom:18px">Todos os administradores criados neste tenant e seus revendedores (usuários <strong>Personal</strong>).</p>
+        <p class="panel-desc" style="margin-bottom:18px">Todos os administradores criados neste tenant e seus revendedores (usuÃ¡rios <strong>Personal</strong>).</p>
 
         <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
             <button onclick="loadAdminUsers()" style="font-size:11px;padding:6px 16px">&#8635; ATUALIZAR</button>
@@ -437,13 +459,13 @@
         <table>
             <thead>
                 <tr>
-                    <th>ADM / USUÁRIO</th>
+                    <th>ADM / USUÃRIO</th>
                     <th>STATUS</th>
                     <th>PLANO</th>
                     <th>VALIDADE</th>
                     <th style="text-align:center">PERSONALS CRIADOS</th>
                     <th style="text-align:center">CLIENTES (PERSONALS)</th>
-                    <th style="text-align:center">CLIENTES (PRÓPRIOS)</th>
+                    <th style="text-align:center">CLIENTES (PRÃ“PRIOS)</th>
                     <th></th>
                 </tr>
             </thead>
@@ -478,7 +500,7 @@
         <input type="hidden" id="ec_id">
         <div class="form-row">
             <div class="field"><label>Nome</label><input id="ec_name" placeholder="Nome completo"></div>
-            <div class="field"><label>Usu&aacute;rio</label><input id="ec_username" placeholder="usuário"></div>
+            <div class="field"><label>Usu&aacute;rio</label><input id="ec_username" placeholder="usuÃ¡rio"></div>
         </div>
         <div class="form-row">
             <div class="field"><label>Senha</label><input id="ec_password" placeholder="senha"></div>
@@ -596,7 +618,7 @@
 <div id="modalPlan" class="modal-overlay" style="display:none" onclick="if(event.target.id==='modalPlan')closePlanModal()">
     <div class="modal-box" style="max-width:380px">
         <div class="modal-header">
-            <h3 id="modalPlanTitle">Plano Gestor — Revenda</h3>
+            <h3 id="modalPlanTitle">Plano Gestor â€” Revenda</h3>
             <button class="btn-close" onclick="closePlanModal()">&#10005;</button>
         </div>
         <div style="padding:16px 0">
@@ -605,11 +627,11 @@
             <div class="field">
                 <label>Meses a adicionar</label>
                 <select id="planMonths">
-                    <option value="1">1 m&ecirc;s — R$ 20,00</option>
-                    <option value="2">2 meses — R$ 40,00</option>
-                    <option value="3">3 meses — R$ 60,00</option>
-                    <option value="6">6 meses — R$ 120,00</option>
-                    <option value="12">12 meses — R$ 240,00</option>
+                    <option value="1">1 m&ecirc;s â€” R$ 20,00</option>
+                    <option value="2">2 meses â€” R$ 40,00</option>
+                    <option value="3">3 meses â€” R$ 60,00</option>
+                    <option value="6">6 meses â€” R$ 120,00</option>
+                    <option value="12">12 meses â€” R$ 240,00</option>
                 </select>
             </div>
             <div class="field">
@@ -634,7 +656,7 @@
             Promise.all(stale.map(r => r.unregister())).then(() => {
                 navigator.serviceWorker.register('/dashboard/sw.js?v=3')
                     .then(reg => {
-                        // Foraça ativação imediata do novo SW
+                        // ForaÃ§a ativaÃ§Ã£o imediata do novo SW
                         if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
                         reg.addEventListener('updatefound', () => {
                             const newWorker = reg.installing;

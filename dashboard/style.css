@@ -1,4 +1,4 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+﻿@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
 
 /* ================================================================
    VARIÁVEIS DE TEMA — altere o tema no JS (body.className)
@@ -253,13 +253,15 @@ body.theme-green {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'Orbitron', sans-serif;
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
 }
 
 body {
     background: #000;
     color: #fff;
     overflow-x: hidden;
+    font-size: 14px;
+    line-height: 1.5;
 }
 
 /* ── FUNDO RADIAL ── */
@@ -428,7 +430,7 @@ h1 {
     letter-spacing: 1px;
     cursor: pointer;
     transition: 0.2s;
-    font-family: 'Orbitron', sans-serif;
+    font-family: 'Rajdhani', 'Segoe UI', sans-serif;
 }
 
 .btn-logout:hover {
@@ -459,7 +461,7 @@ h1 {
     border: none;
     border-bottom: 2px solid transparent;
     color: var(--text-muted);
-    font-family: 'Orbitron', sans-serif;
+    font-family: 'Rajdhani', 'Segoe UI', sans-serif;
     font-size: 10px;
     letter-spacing: 2px;
     cursor: pointer;
@@ -672,7 +674,7 @@ input, select {
     background: var(--bg-input);
     border: 1px solid var(--border3);
     color: #fff;
-    font-family: 'Orbitron', sans-serif;
+    font-family: 'Rajdhani', 'Segoe UI', sans-serif;
     font-size: 12px;
     outline: none;
     transition: 0.2s;
@@ -692,7 +694,7 @@ select option { background: var(--bg-input); }
     background: var(--bg-input);
     border: 1px solid var(--border2);
     color: #ccc;
-    font-family: 'Orbitron', sans-serif;
+    font-family: 'Rajdhani', 'Segoe UI', sans-serif;
     font-size: 10px;
     letter-spacing: 1px;
     cursor: pointer;
@@ -708,7 +710,7 @@ button {
     border: 1px solid var(--accent);
     color: #fff;
     cursor: pointer;
-    font-family: 'Orbitron', sans-serif;
+    font-family: 'Rajdhani', 'Segoe UI', sans-serif;
     font-size: 11px;
     letter-spacing: 1px;
     transition: 0.3s;
@@ -748,7 +750,7 @@ button:hover {
     font-size: 10px;
     letter-spacing: 1px;
     cursor: pointer;
-    font-family: 'Orbitron', sans-serif;
+    font-family: 'Rajdhani', 'Segoe UI', sans-serif;
     transition: 0.2s;
     text-transform: uppercase;
     white-space: nowrap;
@@ -769,7 +771,7 @@ button:hover {
     border: 1px solid var(--border);
     background: transparent;
     cursor: pointer;
-    font-family: 'Orbitron', sans-serif;
+    font-family: 'Rajdhani', 'Segoe UI', sans-serif;
     transition: all .15s;
 }
 
@@ -840,7 +842,7 @@ tbody tr:hover { background: var(--bg-card); }
     letter-spacing: 1px;
     cursor: pointer;
     border-radius: 2px;
-    font-family: 'Orbitron', sans-serif;
+    font-family: 'Rajdhani', 'Segoe UI', sans-serif;
     font-weight: 700;
 }
 
@@ -1468,14 +1470,14 @@ tbody tr:hover { background: var(--bg-card); }
     font-size: 9px;
     letter-spacing: 1.5px;
     padding: 2px 8px;
-    font-family: 'Orbitron', sans-serif;
+    font-family: 'Rajdhani', 'Segoe UI', sans-serif;
     font-weight: 700;
     white-space: nowrap;
     border-radius: 2px;
 }
 
 .plan-card-period {
-    font-family: 'Orbitron', sans-serif;
+    font-family: 'Rajdhani', 'Segoe UI', sans-serif;
     font-size: 13px;
     font-weight: 700;
     color: var(--accent, #1a6fff);
@@ -1544,3 +1546,5 @@ tbody tr:hover { background: var(--bg-card); }
     th { font-size: 9px; padding: 8px; }
     td { font-size: 11px; padding: 8px; }
 }
+
+

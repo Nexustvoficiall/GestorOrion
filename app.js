@@ -345,9 +345,9 @@ async function ensureMasterAdmin() {
 }
 
 /* START SERVER */
-/* alter:true apenas no PostgreSQL (Railway) — SQLite não suporta ALTER com FK */
-const syncOptions = process.env.DATABASE_URL ? { alter: true } : {};
-sequelize.sync(syncOptions).then(async () => {
+/* Apenas cria tabelas que não existem — nunca modifica estrutura existente.
+   alter:true pode recriar tabelas com FK constraints causando perda de dados. */
+sequelize.sync().then(async () => {
     console.log('✅ Banco conectado e sincronizado');
     await ensureMasterAdmin();
     const { startCronJobs } = require('./services/cronService');

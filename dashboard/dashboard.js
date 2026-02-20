@@ -636,12 +636,106 @@ function openClientModal(id) {
         <div class="detail-item"><span>In&iacute;cio</span><strong>${start}</strong></div>
         <div class="detail-item"><span>Vencimento</span><strong>${due}</strong></div>
         <div class="detail-item"><span>Status</span><strong><span class="badge ${c.status==='INATIVO'?'badge-pendente':'badge-pago'}">${c.status||'ATIVO'}</span></strong></div>
+        <div class="detail-item" style="grid-column:1/-1;margin-top:8px;display:flex;gap:10px">
+            <button onclick="closeClientModal();openEditClientModal(${c.id})" style="flex:1">&#9998; EDITAR / RENOVAR</button>
+        </div>
     `;
     document.getElementById('modalClient').style.display = 'flex';
 }
 
 function closeClientModal() {
     document.getElementById('modalClient').style.display = 'none';
+}
+
+/* ===== EDITAR / RENOVAR CLIENTE ===== */
+function openEditClientModal(id) {
+    const c = _clientMap.get(id);
+    if (!c) return;
+    document.getElementById('ec_id').value          = c.id;
+    document.getElementById('ec_name').value         = c.name || '';
+    document.getElementById('ec_username').value     = c.username || '';
+    document.getElementById('ec_password').value     = c.password || '';
+    document.getElementById('ec_whatsapp').value     = c.whatsapp || '';
+    document.getElementById('ec_app').value          = c.app || '';
+    document.getElementById('ec_planValue').value    = c.planValue || '';
+    document.getElementById('ec_costPerActive').value= c.costPerActive || '';
+    // servidor
+    const srvSel = document.getElementById('ec_server');
+    srvSel.innerHTML = _serverCache.map(s =>
+        `<option${s.name === c.server ? ' selected' : ''}>${s.name}</option>`).join('');
+    if (!_serverCache.length) srvSel.innerHTML = `<option>${c.server || ''}</option>`;
+    // plano
+    const planSel = document.getElementById('ec_planType');
+    planSel.value = String(c.planType || 30);
+    // exibir datas
+    _updateEcDates();
+    planSel.onchange = _updateEcDates;
+    document.getElementById('modalEditClient').style.display = 'flex';
+}
+
+function _updateEcDates() {
+    const id = Number(document.getElementById('ec_id').value);
+    const c  = _clientMap.get(id);
+    const days = Number(document.getElementById('ec_planType').value) || 30;
+    const due  = c?.dueDate ? new Date(c.dueDate) : null;
+    const dueStr = due ? due.toLocaleDateString('pt-BR') : '-';
+    const base = due && due > new Date() ? new Date(due) : new Date();
+    base.setDate(base.getDate() + days);
+    document.getElementById('ec_dueDisplay').textContent = dueStr;
+    document.getElementById('ec_renewDisplay').textContent = base.toLocaleDateString('pt-BR');
+}
+
+function closeEditClientModal() {
+    document.getElementById('modalEditClient').style.display = 'none';
+}
+
+async function saveEditClient() {
+    const id = document.getElementById('ec_id').value;
+    const payload = {
+        name:          document.getElementById('ec_name').value,
+        username:      document.getElementById('ec_username').value,
+        password:      document.getElementById('ec_password').value,
+        whatsapp:      document.getElementById('ec_whatsapp').value,
+        server:        document.getElementById('ec_server').value,
+        app:           document.getElementById('ec_app').value,
+        planType:      document.getElementById('ec_planType').value,
+        planValue:     Number(document.getElementById('ec_planValue').value),
+        costPerActive: Number(document.getElementById('ec_costPerActive').value)
+    };
+    try {
+        const res = await fetch('/clients/' + id, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error();
+        showFlash('\u2705 Cliente atualizado!');
+        closeEditClientModal();
+        loadClients();
+        loadMetrics();
+    } catch (e) { alert('\u274c Erro ao salvar cliente.'); }
+}
+
+async function renewClient() {
+    const id   = document.getElementById('ec_id').value;
+    const days = document.getElementById('ec_planType').value;
+    try {
+        const res = await fetch('/clients/' + id + '/renew', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ planType: days })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error();
+        const nova = new Date(data.dueDate).toLocaleDateString('pt-BR');
+        showFlash('\u2705 Renovado! Novo vencimento: ' + nova);
+        closeEditClientModal();
+        loadClients();
+        loadExpiringSoon();
+        loadMetrics();
+    } catch (e) { alert('\u274c Erro ao renovar cliente.'); }
 }
 
 /* ===== REVENDAS — FORMULÁRIO DINÂMICO ===== */

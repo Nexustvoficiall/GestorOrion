@@ -46,6 +46,46 @@ exports.list = async (req, res) => {
     res.json(clients);
 };
 
+exports.update = async (req, res) => {
+    try {
+        const sessionUser = req.session?.user;
+        const where = { id: req.params.id, tenantId: req.tenantId };
+        if (sessionUser?.role === 'reseller' && sessionUser?.resellerId) {
+            where.resellerId = sessionUser.resellerId;
+        }
+        const client = await Client.findOne({ where });
+        if (!client) return res.status(404).json({ error: 'Cliente não encontrado' });
+        const { name, username, password, whatsapp, server, app, planType, planValue, costPerActive } = req.body;
+        await client.update({ name, username, password, whatsapp, server, app, planType, planValue, costPerActive });
+        await audit(req, 'UPDATE_CLIENT', 'Client', client.id, { name });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Erro ao atualizar cliente' });
+    }
+};
+
+exports.renew = async (req, res) => {
+    try {
+        const sessionUser = req.session?.user;
+        const where = { id: req.params.id, tenantId: req.tenantId };
+        if (sessionUser?.role === 'reseller' && sessionUser?.resellerId) {
+            where.resellerId = sessionUser.resellerId;
+        }
+        const client = await Client.findOne({ where });
+        if (!client) return res.status(404).json({ error: 'Cliente não encontrado' });
+        const days = Number(req.body.planType || client.planType) || 30;
+        const base = client.dueDate && new Date(client.dueDate) > new Date()
+            ? new Date(client.dueDate)
+            : new Date();
+        base.setDate(base.getDate() + days);
+        await client.update({ dueDate: base, status: 'ATIVO' });
+        await audit(req, 'RENEW_CLIENT', 'Client', client.id, { days, newDueDate: base });
+        res.json({ success: true, dueDate: base });
+    } catch (e) {
+        res.status(500).json({ error: 'Erro ao renovar cliente' });
+    }
+};
+
 exports.toggleStatus = async (req, res) => {
     try {
         const sessionUser = req.session?.user;

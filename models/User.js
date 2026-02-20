@@ -45,6 +45,14 @@ const User = sequelize.define('User', {
     createdBy: {
         type: DataTypes.INTEGER,
         allowNull: true // id do user que criou este usuário (para isolamento de lista)
+    },
+    themeColor: {
+        type: DataTypes.STRING,
+        defaultValue: 'red' // tema de cor do painel (red|blue|yellow|purple|green)
+    },
+    logoBase64: {
+        type: DataTypes.TEXT,
+        allowNull: true  // logo personalizado do painel (base64)
     }
 });
 

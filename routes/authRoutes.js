@@ -31,4 +31,8 @@ router.post('/users', requireAuth, requireAdmin, enforceTenant, ctrl.createResel
 router.get('/users',  requireAuth, requireAdmin, ctrl.listUsers);
 router.delete('/users/:userId', requireAuth, requireAdmin, enforceTenant, ctrl.deleteUser);
 
+/* Preferências pessoais — tema de cor e logo (qualquer usuário autenticado) */
+router.get('/preferences',  requireAuth, ctrl.getPreferences);
+router.put('/preferences',  requireAuth, ctrl.savePreferences);
+
 module.exports = router;

@@ -5,22 +5,42 @@
 const fmt = v => 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',');
 
 /* ===== TEMA ===== */
-const THEMES = ['red', 'blue', 'yellow', 'purple', 'green'];
+const THEMES_LIST = ['red', 'blue', 'yellow', 'purple', 'green'];
 
-function setTheme(theme) {
-    THEMES.forEach(t => document.body.classList.remove('theme-' + t));
-    if (theme !== 'red') document.body.classList.add('theme-' + theme);
+// Aplica o tema localmente (sem salvar no servidor)
+function applyThemeLocally(name) {
+    THEMES_LIST.forEach(t => document.body.classList.remove('theme-' + t));
+    if (name !== 'red') document.body.classList.add('theme-' + name);
     document.querySelectorAll('.theme-btn').forEach(b => {
         b.classList.remove('active');
-        if (b.dataset.theme === theme || b.classList.contains('t-' + theme)) {
+        if (b.dataset.theme === name || b.classList.contains('t-' + name)) {
             b.classList.add('active');
         }
     });
-    localStorage.setItem('nexus_theme', theme);
+    localStorage.setItem('nexus_theme', name);
+}
+
+// Aplica tema E salva no servidor (acionado pelo usuário via botão)
+async function setTheme(name) {
+    applyThemeLocally(name);
+    await savePrefsToServer({ themeColor: name });
+    showFlash('\u2705 Tema salvo!');
 }
 
 function loadTheme() {
-    setTheme(localStorage.getItem('nexus_theme') || 'blue');
+    applyThemeLocally(localStorage.getItem('nexus_theme') || 'red');
+}
+
+// Salva preferências no servidor (themeColor e/ou logoBase64)
+async function savePrefsToServer(prefs) {
+    try {
+        await fetch('/auth/preferences', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(prefs)
+        });
+    } catch (e) { /* falha silenciosa — dado já aplicado localmente */ }
 }
 
 /* ===== PERFIL ===== */
@@ -43,10 +63,12 @@ function uploadLogo(input) {
     if (!file) return;
     if (file.size > 500 * 1024) { alert('Imagem muito grande. Use até 500KB.'); return; }
     const reader = new FileReader();
-    reader.onload = e => {
+    reader.onload = async e => {
         const data = e.target.result;
         localStorage.setItem('nexus_logo', data);
         loadProfile();
+        await savePrefsToServer({ logoBase64: data });
+        showFlash('\u2705 Logo salva!');
     };
     reader.readAsDataURL(file);
 }
@@ -63,6 +85,21 @@ function removeLogo() {
     if (prevPlaceholder) prevPlaceholder.style.display = 'none';
     const inp = document.getElementById('logoFileInput');
     if (inp) inp.value = '';
+    savePrefsToServer({ logoBase64: null });
+    showFlash('\u2705 Logo removida!');
+}
+
+// Carrega logo salva no servidor e aplica no painel (sincroniza entre dispositivos)
+async function applyLogoFromServer() {
+    try {
+        const r = await fetch('/auth/preferences', { credentials: 'include' });
+        if (!r.ok) return;
+        const p = await r.json();
+        if (p.logoBase64) {
+            localStorage.setItem('nexus_logo', p.logoBase64);
+            loadProfile();
+        }
+    } catch (e) { /* falha silenciosa */ }
 }
 
 function saveSiteTitle() { /* mantido para compatibilidade */ }
@@ -272,6 +309,9 @@ async function loadUserInfo() {
         // Preencher campo de usuário na aba Perfil
         const uInp = document.getElementById('usernameInput');
         if (uInp) uInp.placeholder = user.username;
+        // Aplicar tema e logo salvos no servidor (fonte de verdade ao logar em outro dispositivo)
+        applyThemeLocally(user.themeColor || localStorage.getItem('nexus_theme') || 'red');
+        applyLogoFromServer(); // async, não bloqueia o carregamento
         if (_isAdmin) {
             const tab = document.getElementById('tabAdmin');
             if (tab) tab.style.display = '';

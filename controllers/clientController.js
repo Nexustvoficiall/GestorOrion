@@ -3,9 +3,9 @@ const dayjs = require('dayjs');
 const { audit } = require('../middlewares/authMiddleware');
 const { Op } = require('sequelize');
 
-/* Helper: para personal, filtra por userId = sessionUser.id (isolamento exclusivo por usuário) */
+/* Helper: para personal e admin, filtra por userId = sessionUser.id (isolamento exclusivo por usuário) */
 function personalWhere(sessionUser, base = {}) {
-    if (sessionUser?.role === 'personal') {
+    if (['personal', 'admin'].includes(sessionUser?.role)) {
         return { ...base, userId: sessionUser.id };
     }
     return base;
@@ -20,10 +20,10 @@ exports.create = async (req, res) => {
 
     if (!tenantId) return res.status(403).json({ error: 'Tenant não identificado' });
 
-    // Para personal: userId = id único do usuário logado (isolamento exclusivo)
-    const userId = sessionUser?.role === 'personal' ? sessionUser.id : null;
-    // resellerId fica nulo para personal (userId já garante isolamento)
-    const resellerId = sessionUser?.role === 'personal' ? null : (req.body.resellerId || null);
+    // Para personal e admin: userId = id único do usuário logado (isolamento exclusivo)
+    const userId = ['personal', 'admin'].includes(sessionUser?.role) ? sessionUser.id : null;
+    // resellerId fica nulo para personal/admin (userId já garante isolamento)
+    const resellerId = ['personal', 'admin'].includes(sessionUser?.role) ? null : (req.body.resellerId || null);
 
     const client = await Client.create({
         ...req.body,

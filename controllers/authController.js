@@ -44,7 +44,8 @@ exports.login = async (req, res) => {
             resellerId:  user.resellerId,
             tenantId:    user.tenantId || null,
             firstLogin:  user.firstLogin !== false,
-            panelExpiry: user.panelExpiry || null  // inclui na sessão para exibir no painel
+            panelExpiry: user.panelExpiry || null,  // inclui na sessão para exibir no painel
+            themeColor:  user.themeColor || 'red'   // tema de cor salvo pelo usuário
         };
 
         await audit(req, 'LOGIN', 'User', user.id, { username: user.username });
@@ -229,6 +230,37 @@ exports.markFirstLoginDone = async (req, res) => {
         req.session.save(() => res.json({ ok: true }));
     } catch (err) {
         res.status(500).json({ error: 'Erro interno' });
+    }
+};
+
+/* PREFERÊNCIAS DO USUÁRIO: tema de cor e logo (GET — retorna do DB) */
+exports.getPreferences = async (req, res) => {
+    try {
+        const user = await User.findByPk(req.session.user.id, {
+            attributes: ['themeColor', 'logoBase64']
+        });
+        if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+        res.json({ themeColor: user.themeColor || 'red', logoBase64: user.logoBase64 || null });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Erro ao carregar preferências' });
+    }
+};
+
+/* PREFERÊNCIAS DO USUÁRIO: salva tema de cor e/ou logo (PUT) */
+exports.savePreferences = async (req, res) => {
+    try {
+        const { themeColor, logoBase64 } = req.body;
+        const updates = {};
+        if (themeColor !== undefined) updates.themeColor = themeColor;
+        if (logoBase64 !== undefined) updates.logoBase64 = logoBase64 || null;
+        await User.update(updates, { where: { id: req.session.user.id } });
+        // Atualiza sessão para que /auth/me reflita imediatamente
+        if (themeColor !== undefined) req.session.user.themeColor = themeColor;
+        req.session.save(() => res.json({ ok: true }));
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Erro ao salvar preferências' });
     }
 };
 

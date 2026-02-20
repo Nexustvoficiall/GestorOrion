@@ -368,6 +368,7 @@ sequelize.sync().then(async () => {
             await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "planPricesAdminJSON" TEXT;`);
             await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "saldoCaixaJSON" TEXT;`);
             await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "adesaoPaga" BOOLEAN DEFAULT false;`);
+            await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "paymentsJSON" TEXT;`);
         } catch (_) { /* coluna já existe — ignorar */ }
     } else {
         // SQLite: sintaxe sem IF NOT EXISTS
@@ -383,6 +384,7 @@ sequelize.sync().then(async () => {
         try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "planPricesAdminJSON" TEXT`); } catch (_) {}
         try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "saldoCaixaJSON" TEXT`); } catch (_) {}
         try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "adesaoPaga" BOOLEAN DEFAULT 0`); } catch (_) {}
+        try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "paymentsJSON" TEXT`); } catch (_) {}
     }
     // Migra role 'reseller' → 'personal' (renomeio de perfil) — roda em PG e SQLite
     try { await sequelize.query(`UPDATE "Users" SET "role" = 'personal' WHERE "role" = 'reseller'`); } catch (_) {}

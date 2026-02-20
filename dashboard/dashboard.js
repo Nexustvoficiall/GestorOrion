@@ -201,6 +201,53 @@ function switchTab(name) {
     if (name === 'financeiro') loadMetrics();
     if (name === 'admin') { loadResellerSelect(); loadUsers(); loadLicenseInfo(); updatePlanPreview('6m'); }
     if (name === 'servidores') loadServers();
+    if (name === 'users') loadAdminUsers();
+}
+
+/* ===== ADMINISTRADORES (ABA USERS — somente master) ===== */
+async function loadAdminUsers() {
+    const tb = document.getElementById('adminUserList');
+    if (!tb) return;
+    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#555">Carregando...</td></tr>';
+    try {
+        const res = await fetch('/auth/admins', { credentials: 'include' });
+        if (!res.ok) { tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#f44">Sem permissão</td></tr>'; return; }
+        const admins = await res.json();
+        if (!admins.length) {
+            tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#555">Nenhum administrador cadastrado</td></tr>';
+            return;
+        }
+        tb.innerHTML = admins.map(a => {
+            const expDate = a.panelExpiry ? new Date(a.panelExpiry).toLocaleDateString('pt-BR') : '&mdash;';
+            const statusBadge = a.isExpired
+                ? '<span class="badge badge-pendente" style="font-size:9px">⚠ EXPIRADO</span>'
+                : '<span class="badge badge-pago" style="font-size:9px">✓ ATIVO</span>';
+            const createdAt = new Date(a.createdAt).toLocaleDateString('pt-BR');
+            return `<tr>
+                <td><strong>${a.username}</strong><br><span style="font-size:10px;color:#666">criado em ${createdAt}</span></td>
+                <td>${statusBadge}</td>
+                <td><span style="font-size:10px;color:var(--accent)">${a.panelPlan}</span></td>
+                <td>${expDate}</td>
+                <td style="text-align:center">
+                    <span style="font-size:20px;font-family:'Orbitron',sans-serif;color:var(--accent2)">${a.personalCount}</span>
+                    <br><span style="font-size:10px;color:#666">revendedor(es)</span>
+                </td>
+                <td style="text-align:center">
+                    <span style="font-size:20px;font-family:'Orbitron',sans-serif;color:#4499ff">${a.clientsFromPersonals}</span>
+                    <br><span style="font-size:10px;color:#666">cliente(s)</span>
+                </td>
+                <td style="text-align:center">
+                    <span style="font-size:20px;font-family:'Orbitron',sans-serif;color:#aaa">${a.adminClients}</span>
+                    <br><span style="font-size:10px;color:#666">cliente(s)</span>
+                </td>
+                <td>
+                    <button class="btn-sm" style="font-size:10px;background:#c0392b" onclick="deleteUser(${a.id}, '${a.username.replace(/'/g, '')}')">&#128465; Excluir</button>
+                </td>
+            </tr>`;
+        }).join('');
+    } catch (e) {
+        tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#f44">Erro ao carregar</td></tr>';
+    }
 }
 
 /* ===== LICENÇA ===== */
@@ -315,6 +362,11 @@ async function loadUserInfo() {
         if (_isAdmin) {
             const tab = document.getElementById('tabAdmin');
             if (tab) tab.style.display = '';
+        }
+        // Aba USUÁRIOS visível apenas para master
+        if (_isMaster) {
+            const tabU = document.getElementById('tabUsers');
+            if (tabU) tabU.style.display = '';
         }
         // Personal: painel completo com dados isolados — não esconder nenhum card
         // (backend já filtra pelos dados exclusivos do usuário)

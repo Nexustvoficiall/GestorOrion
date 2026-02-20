@@ -31,6 +31,9 @@ router.post('/users', requireAuth, requireAdmin, enforceTenant, ctrl.createResel
 router.get('/users',  requireAuth, requireAdmin, ctrl.listUsers);
 router.delete('/users/:userId', requireAuth, requireAdmin, enforceTenant, ctrl.deleteUser);
 
+/* Somente master: lista admins com estatísticas */
+router.get('/admins', requireAuth, ctrl.listAdmins);
+
 /* Preferências pessoais — tema de cor e logo (qualquer usuário autenticado) */
 router.get('/preferences',  requireAuth, ctrl.getPreferences);
 router.put('/preferences',  requireAuth, ctrl.savePreferences);

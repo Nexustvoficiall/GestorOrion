@@ -1,4 +1,5 @@
-const { User } = require('../models');
+const { User, Client } = require('../models');
+const { Op, fn, col, literal } = require('sequelize');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const fs = require('fs');
@@ -182,6 +183,58 @@ exports.listUsers = async (req, res) => {
         attributes: ['id', 'username', 'role', 'resellerId', 'firstLogin', 'panelPlan', 'panelExpiry', 'createdBy']
     });
     res.json(users);
+};
+
+/* LISTAR ADMINS COM CONTAGEM DE PERSONALS E CLIENTES (somente master) */
+exports.listAdmins = async (req, res) => {
+    try {
+        const tenantId = req.session?.user?.tenantId;
+        const where = tenantId ? { role: 'admin', tenantId } : { role: 'admin' };
+
+        const admins = await User.findAll({
+            where,
+            attributes: ['id', 'username', 'panelExpiry', 'panelPlan', 'createdAt']
+        });
+
+        // Para cada admin: conta personals criados e clientes cadastrados por esses personals
+        const result = await Promise.all(admins.map(async (admin) => {
+            // Personal users criados por este admin
+            const personalUsers = await User.findAll({
+                where: { createdBy: admin.id, role: 'personal' },
+                attributes: ['id']
+            });
+            const personalIds = personalUsers.map(u => u.id);
+
+            // Total de clientes cadastrados pelos personals deste admin
+            let totalClients = 0;
+            if (personalIds.length > 0) {
+                totalClients = await Client.count({
+                    where: { userId: { [Op.in]: personalIds } }
+                });
+            }
+
+            // Clientes cadastrados diretamente pelo admin (userId = admin.id)
+            const adminClients = await Client.count({ where: { userId: admin.id } });
+
+            const isExpired = admin.panelExpiry && new Date(admin.panelExpiry) < new Date();
+            return {
+                id: admin.id,
+                username: admin.username,
+                panelExpiry: admin.panelExpiry || null,
+                panelPlan: admin.panelPlan || 'STANDARD',
+                isExpired,
+                personalCount: personalIds.length,
+                clientsFromPersonals: totalClients,
+                adminClients,
+                createdAt: admin.createdAt
+            };
+        }));
+
+        res.json(result);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Erro ao listar admins' });
+    }
 };
 
 /* GERAR TOKEN DE RESET (admin/master para outro usuário) */

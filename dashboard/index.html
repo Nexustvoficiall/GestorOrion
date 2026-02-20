@@ -49,6 +49,7 @@
     <button class="tab-btn"        data-tab="financeiro" onclick="switchTab('financeiro')">&#128202; FINANCEIRO</button>
     <button class="tab-btn"        data-tab="perfil"    onclick="switchTab('perfil')">&#9881; MEU PERFIL</button>
     <button class="tab-btn admin-tab" id="tabAdmin" data-tab="admin" onclick="switchTab('admin')" style="display:none">&#9873; ADMIN</button>
+    <button class="tab-btn" id="tabUsers" data-tab="users" onclick="switchTab('users')" style="display:none">&#128101; USUÁRIOS</button>
 </nav>
 
 <main>
@@ -417,6 +418,38 @@
         <table>
             <thead><tr><th>Data/Hora</th><th>Usu&aacute;rio</th><th>Ação</th><th>Entidade</th><th>IP</th></tr></thead>
             <tbody id="auditList"><tr><td colspan="5" style="text-align:center;color:#555">Clique em &#8635; para carregar</td></tr></tbody>
+        </table>
+        </div>
+    </section>
+</div>
+
+<!-- ABA USUÁRIOS (somente master) -->
+<div id="tab-users" class="tab-content">
+    <section class="panel">
+        <h2>&#128101; ADMINISTRADORES DO SISTEMA</h2>
+        <p class="panel-desc" style="margin-bottom:18px">Todos os administradores criados neste tenant e seus revendedores (usuários <strong>Personal</strong>).</p>
+
+        <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+            <button onclick="loadAdminUsers()" style="font-size:11px;padding:6px 16px">&#8635; ATUALIZAR</button>
+        </div>
+
+        <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>ADM / USUÁRIO</th>
+                    <th>STATUS</th>
+                    <th>PLANO</th>
+                    <th>VALIDADE</th>
+                    <th style="text-align:center">PERSONALS CRIADOS</th>
+                    <th style="text-align:center">CLIENTES (PERSONALS)</th>
+                    <th style="text-align:center">CLIENTES (PRÓPRIOS)</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="adminUserList">
+                <tr><td colspan="8" style="text-align:center;color:#555">Carregando...</td></tr>
+            </tbody>
         </table>
         </div>
     </section>

@@ -227,7 +227,7 @@ function switchTab(name) {
     if (name === 'perfil') loadMyRenewal();
     if (name === 'admin') { loadResellerSelect(); loadUsers(); loadLicenseInfo(); updatePlanPreview('6m'); loadRenewalRequests(); loadPlanPrices(); }
     if (name === 'servidores') loadServers();
-    if (name === 'users') loadAdminUsers();
+    if (name === 'users') { loadAdminUsers(); loadMasterFinancial(); }
     if (name === 'mensalistas') loadMensalistas();
 }
 
@@ -235,43 +235,45 @@ function switchTab(name) {
 async function loadAdminUsers() {
     const tb = document.getElementById('adminUserList');
     if (!tb) return;
-    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#555">Carregando...</td></tr>';
+    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#555">Carregando...</td></tr>';
     try {
         const res = await fetch('/auth/admins', { credentials: 'include' });
         if (!res.ok) { tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#f44">Sem permissão</td></tr>'; return; }
         const admins = await res.json();
         if (!admins.length) {
-            tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#555">Nenhum administrador cadastrado</td></tr>';
+            tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#555">Nenhum administrador cadastrado</td></tr>';
             return;
         }
         tb.innerHTML = admins.map(a => {
             const expDate = a.panelExpiry ? new Date(a.panelExpiry).toLocaleDateString('pt-BR') : '&mdash;';
-            const statusBadge = a.isExpired
+            const isExp = a.isExpired;
+            const isSoon = !isExp && a.panelExpiry && (() => { const d = new Date(a.panelExpiry); const diff = (d - new Date()) / 86400000; return diff <= 7; })();
+            const statusBadge = isExp
                 ? '<span class="badge badge-pendente" style="font-size:9px">⚠ EXPIRADO</span>'
-                : '<span class="badge badge-pago" style="font-size:9px">✓ ATIVO</span>';
+                : (isSoon ? '<span class="badge" style="font-size:9px;background:#b8860b">⚠ VENCE EM BREVE</span>' : '<span class="badge badge-pago" style="font-size:9px">✓ ATIVO</span>');
             const createdAt = new Date(a.createdAt).toLocaleDateString('pt-BR');
             const totalClients = (a.clientsFromPersonals || 0) + (a.adminClients || 0);
             const revenueColor = (a.totalRevenue || 0) > 0 ? '#00cc66' : '#555';
-            return `<tr>
+            const safeUser = a.username.replace(/'/g, '');
+            const expiryVal = a.panelExpiry || '';
+            return `<tr${isExp ? ' style="opacity:0.7"' : ''}>
                 <td><strong>${a.username}</strong><br><span style="font-size:10px;color:#666">criado em ${createdAt}</span></td>
                 <td>${statusBadge}</td>
-                <td><span style="font-size:10px;color:var(--accent)">${a.panelPlan}</span></td>
                 <td>${expDate}</td>
                 <td style="text-align:center">
                     <span style="font-size:18px;font-family:'Rajdhani','Segoe UI',sans-serif;color:var(--accent2)">${a.personalCount}</span>
                     <span style="font-size:10px;color:#666"> personal(s)</span>
-                    <br><span style="font-size:10px;color:#aaa">${totalClients} cliente(s)</span>
                 </td>
                 <td style="text-align:center">
-                    <span style="font-size:18px;font-family:'Rajdhani','Segoe UI',sans-serif;color:#4499ff">${a.clientsFromPersonals}</span>
-                    <br><span style="font-size:10px;color:#666">via personal</span>
+                    <span style="font-size:18px;font-family:'Rajdhani','Segoe UI',sans-serif;color:#4499ff">${totalClients}</span>
+                    <br><span style="font-size:10px;color:#666">clientes</span>
                 </td>
                 <td style="text-align:right">
                     <span style="font-size:16px;font-family:'Rajdhani','Segoe UI',sans-serif;color:${revenueColor}">${fmt(a.totalRevenue || 0)}</span>
-                    <br><span style="font-size:10px;color:#555">clientes ativos</span>
                 </td>
-                <td>
-                    <button class="btn-sm" style="font-size:10px;background:#c0392b" onclick="deleteUser(${a.id}, '${a.username.replace(/'/g, '')}')">&#128465; Excluir</button>
+                <td style="white-space:nowrap">
+                    <button class="btn-sm" style="font-size:10px" onclick="openEditUserModal(${a.id},'${safeUser}','admin','${expiryVal}',${a.adesaoPaga})">&#9998; Editar</button>
+                    <button class="btn-sm" style="font-size:10px;background:#c0392b;margin-left:4px" onclick="deleteUser(${a.id}, '${safeUser}')">&#128465; Excluir</button>
                 </td>
             </tr>`;
         }).join('');
@@ -637,7 +639,8 @@ async function loadUsers() {
                 <td>${planLabel}</td>
                 <td>${expDate} ${expBadge}</td>
                 <td style="white-space:nowrap">
-                    <button class="btn-sm" style="font-size:10px" onclick="generateUserResetToken(${u.id}, '${u.username.replace(/'/g,'')}')">&#128273; Senha</button>
+                    <button class="btn-sm" style="font-size:10px" onclick="openEditUserModal(${u.id},'${u.username.replace(/'/g,'')}','${u.role}','${u.panelExpiry||''}',false)">&#9998; Editar</button>
+                    <button class="btn-sm" style="font-size:10px;margin-left:4px" onclick="generateUserResetToken(${u.id}, '${u.username.replace(/'/g,'')}')">&#128273; Senha</button>
                     <button class="btn-sm" style="font-size:10px;background:#c0392b;margin-left:4px" onclick="deleteUser(${u.id}, '${u.username.replace(/'/g,'')}')">&#128465; Excluir</button>
                 </td>
             </tr>`;
@@ -663,6 +666,88 @@ async function deleteUser(userId, username) {
         showFlash('\u2705 Acesso de "' + username + '" excluído.');
         loadUsers();
     } catch (e) { alert('\u274c Erro ao excluir.'); }
+}
+
+/* ===== FINANCEIRO MASTER ===== */
+async function loadMasterFinancial() {
+    try {
+        const res = await fetch('/auth/master-financial', { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+        const s = data.summary;
+        const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+        set('mf_active', s.active);
+        set('mf_expired', s.expired);
+        set('mf_soon', s.expiringSoon);
+        set('mf_personals', s.totalPersonals);
+        set('mf_monthly', 'R$ ' + Number(s.totalMonthlyEstimate || 0).toFixed(2).replace('.', ','));
+        const alertsEl = document.getElementById('mf_alerts');
+        if (alertsEl) {
+            const critical = (data.admins || []).filter(a => a.isExpired || a.isExpiringSoon);
+            if (critical.length) {
+                alertsEl.innerHTML = critical.map(a => {
+                    const color = a.isExpired ? '#ff4444' : '#ffaa00';
+                    const msg = a.isExpired ? 'EXPIRADO' : ('vence em ' + a.daysLeft + 'd');
+                    return `<div class="cost-item" style="margin-bottom:4px"><span style="color:${color}">\u26a0 ${a.username}</span>&nbsp;<span style="color:${color};font-size:11px">${msg} &mdash; ${a.personalCount} personal(s)</span></div>`;
+                }).join('');
+            } else {
+                alertsEl.innerHTML = '<span style="color:#00cc66;font-size:12px">\u2713 Nenhum admin com vencimento cr\u00edtico</span>';
+            }
+        }
+    } catch (e) { console.error('loadMasterFinancial', e); }
+}
+
+/* ===== EDITAR USUÁRIO ===== */
+function openEditUserModal(id, username, role, panelExpiry, adesaoPaga) {
+    document.getElementById('eu_id').value = id;
+    document.getElementById('eu_username').value = username;
+    document.getElementById('eu_role').value = role;
+    document.getElementById('eu_password').value = '';
+    const expEl = document.getElementById('eu_expiry');
+    if (panelExpiry) {
+        try { expEl.value = new Date(panelExpiry).toISOString().split('T')[0]; } catch(e) { expEl.value = ''; }
+    } else {
+        expEl.value = '';
+    }
+    const adesaoWrap = document.getElementById('eu_adesao_wrap');
+    if (adesaoWrap) {
+        adesaoWrap.style.display = (_isMaster && role === 'admin') ? '' : 'none';
+        const cb = document.getElementById('eu_adesaoPaga');
+        if (cb) cb.checked = Boolean(adesaoPaga);
+    }
+    const adminOpt = document.getElementById('eu_role').querySelector('option[value="admin"]');
+    if (adminOpt) adminOpt.disabled = !_isMaster;
+    document.getElementById('modalEditUser').style.display = 'flex';
+}
+
+function closeEditUserModal() {
+    document.getElementById('modalEditUser').style.display = 'none';
+}
+
+async function saveEditUser() {
+    const id       = document.getElementById('eu_id').value;
+    const username = document.getElementById('eu_username').value.trim();
+    const role     = document.getElementById('eu_role').value;
+    const expiry   = document.getElementById('eu_expiry').value;
+    const password = document.getElementById('eu_password').value;
+    const adesaoPagaCb = document.getElementById('eu_adesaoPaga');
+    if (!username) { showToast('Informe o nome de usu\u00e1rio', '#ff4444'); return; }
+    const body = { username, role, panelExpiry: expiry || null };
+    if (password) body.password = password;
+    if (_isMaster && adesaoPagaCb) body.adesaoPaga = adesaoPagaCb.checked;
+    try {
+        const res = await fetch('/auth/users/' + id, {
+            method: 'PATCH', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (!res.ok) { showToast(data.error || 'Erro ao salvar', '#ff4444'); return; }
+        showToast('\u2705 Usu\u00e1rio atualizado!', '#00cc66');
+        closeEditUserModal();
+        loadUsers();
+        if (_isMaster) { loadAdminUsers(); loadMasterFinancial(); }
+    } catch (e) { showToast('Erro de conex\u00e3o', '#ff4444'); }
 }
 
 

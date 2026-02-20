@@ -29,10 +29,12 @@ router.post('/users/:userId/reset-token', requireAuth, requireAdmin, enforceTena
 /* Apenas admin pode criar/listar/excluir usuários */
 router.post('/users', requireAuth, requireAdmin, enforceTenant, ctrl.createReseller);
 router.get('/users',  requireAuth, requireAdmin, ctrl.listUsers);
+router.patch('/users/:userId', requireAuth, requireAdmin, ctrl.editUser);
 router.delete('/users/:userId', requireAuth, requireAdmin, enforceTenant, ctrl.deleteUser);
 
-/* Somente master: lista admins com estatísticas */
+/* Somente master: lista admins com estatísticas e relatório financeiro */
 router.get('/admins', requireAuth, ctrl.listAdmins);
+router.get('/master-financial', requireAuth, ctrl.getMasterFinancial);
 
 /* Preferências pessoais — tema de cor e logo (qualquer usuário autenticado) */
 router.get('/preferences',  requireAuth, ctrl.getPreferences);

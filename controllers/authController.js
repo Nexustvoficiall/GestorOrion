@@ -352,6 +352,115 @@ exports.savePreferences = async (req, res) => {
     }
 };
 
+/* EDITAR USUÁRIO — role, panelExpiry, username, senha (master ou admin criador) */
+exports.editUser = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const callerRole = req.session?.user?.role;
+        const callerId   = req.session?.user?.id;
+
+        // Master edita qualquer um; admin só edita quem ele criou
+        const where = callerRole === 'master'
+            ? { id: userId }
+            : { id: userId, createdBy: callerId };
+
+        const user = await User.findOne({ where });
+        if (!user) return res.status(404).json({ error: 'Usuário não encontrado ou sem permissão' });
+        if (user.role === 'master') return res.status(403).json({ error: 'Não é possível editar um master' });
+
+        const updates = {};
+        const { username, role, panelExpiry, password, adesaoPaga } = req.body;
+
+        if (username && username.trim() && username.trim() !== user.username) {
+            const exists = await User.findOne({ where: { username: username.trim(), tenantId: user.tenantId } });
+            if (exists && exists.id !== Number(userId)) return res.status(400).json({ error: 'Nome de usuário já em uso' });
+            updates.username = username.trim();
+        }
+
+        if (role && ['personal', 'admin'].includes(role)) {
+            if (callerRole !== 'master' && role === 'admin')
+                return res.status(403).json({ error: 'Apenas master pode promover a admin' });
+            updates.role = role;
+        }
+
+        if (panelExpiry !== undefined) {
+            if (!panelExpiry || panelExpiry === '') {
+                updates.panelExpiry = null;
+            } else {
+                const d = new Date(panelExpiry);
+                if (!isNaN(d)) updates.panelExpiry = d;
+            }
+        }
+
+        if (password && password.length >= 4) {
+            updates.password = await bcrypt.hash(password, 10);
+        } else if (password && password.length > 0) {
+            return res.status(400).json({ error: 'Senha muito curta (mínimo 4 caracteres)' });
+        }
+
+        if (adesaoPaga !== undefined && callerRole === 'master') {
+            updates.adesaoPaga = Boolean(adesaoPaga);
+        }
+
+        await user.update(updates);
+        await audit(req, 'EDIT_USER', 'User', Number(userId), { ...updates, password: updates.password ? '***' : undefined });
+        res.json({ ok: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Erro ao editar usuário' });
+    }
+};
+
+/* FINANCEIRO DO MASTER — resumo de todos os admins */
+exports.getMasterFinancial = async (req, res) => {
+    try {
+        const { role } = req.session?.user || {};
+        if (role !== 'master') return res.status(403).json({ error: 'Sem permissão' });
+
+        const admins = await User.findAll({ where: { role: 'admin' }, attributes: ['id', 'username', 'panelExpiry', 'adesaoPaga', 'createdAt'] });
+        const today  = new Date(); today.setHours(0, 0, 0, 0);
+        const in7    = new Date(today); in7.setDate(in7.getDate() + 7);
+
+        let activeCount = 0, expiredCount = 0, expiringSoonCount = 0, totalMonthlyEstimate = 0;
+
+        const rows = await Promise.all(admins.map(async a => {
+            const personalCount = await User.count({ where: { createdBy: a.id, role: 'personal' } });
+            const monthlyEst    = personalCount * 5;
+            const totalEst      = monthlyEst + (a.adesaoPaga ? 0 : 50);
+
+            const exp      = a.panelExpiry ? new Date(a.panelExpiry) : null;
+            const daysLeft = exp ? Math.ceil((exp - today) / 86400000) : null;
+            const isExpired      = exp && exp < today;
+            const isExpiringSoon = exp && !isExpired && exp <= in7;
+
+            if (isExpired)        expiredCount++;
+            else if (isExpiringSoon) expiringSoonCount++;
+            else                  activeCount++;
+
+            totalMonthlyEstimate += monthlyEst;
+
+            return {
+                id: a.id, username: a.username, personalCount,
+                monthlyEst, totalEst, adesaoPaga: a.adesaoPaga || false,
+                panelExpiry: a.panelExpiry, daysLeft, isExpired, isExpiringSoon
+            };
+        }));
+
+        res.json({
+            admins: rows,
+            summary: {
+                total: admins.length, active: activeCount,
+                expired: expiredCount, expiringSoon: expiringSoonCount,
+                totalMonthlyEstimate,
+                totalPersonals: rows.reduce((s, r) => s + r.personalCount, 0)
+            }
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Erro ao calcular financeiro' });
+    }
+};
+
 /* EXCLUIR USUÁRIO (master pode excluir qualquer um; admin só do próprio tenant) */
 exports.deleteUser = async (req, res) => {
     try {

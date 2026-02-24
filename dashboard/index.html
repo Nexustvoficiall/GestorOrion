@@ -51,7 +51,7 @@
     <button class="tab-btn"        data-tab="financeiro" onclick="switchTab('financeiro')">&#128202; FINANCEIRO</button>
     <button class="tab-btn"        data-tab="perfil"    onclick="switchTab('perfil')">&#9881; MEU PERFIL <span id="perfilBadge" style="display:none;background:#ff4444;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;vertical-align:middle;margin-left:4px">!</span></button>
     <button class="tab-btn admin-tab" id="tabAdmin" data-tab="admin" onclick="switchTab('admin')" style="display:none">&#9873; ADMIN <span id="adminRenewalBadge" style="display:none;background:#ff4444;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;vertical-align:middle;margin-left:4px">0</span></button>
-    <button class="tab-btn" id="tabUsers" data-tab="users" onclick="switchTab('users')" style="display:none">&#128101; USUÃRIOS</button>
+    <button class="tab-btn" id="tabUsers" data-tab="users" onclick="switchTab('users')" style="display:none">&#128101; USU&Aacute;RIOS</button>
     <button class="tab-btn" id="tabLogs" data-tab="logs" onclick="switchTab('logs')" style="display:none">&#128202; LOGS</button>
 </nav>
 
@@ -414,12 +414,12 @@
                 </div>
             </div>
 
-            <!-- Nome de UsuÃ¡rio -->
+            <!-- Nome de Usu&aacute;rio -->
             <div class="perfil-card">
                 <h3>&#128100; Nome de Usu&aacute;rio</h3>
                 <div class="perfil-row">
                     <label>Usu&aacute;rio atual</label>
-                    <input id="usernameInput" placeholder="Novo nome de usuÃ¡rio" maxlength="40" autocomplete="off">
+                    <input id="usernameInput" placeholder="Novo nome de usu&aacute;rio" maxlength="40" autocomplete="off">
                 </div>
                 <div class="perfil-row">
                     <label>Confirmar com senha atual</label>
@@ -596,12 +596,12 @@
     </section>
 </div>
 <div id="tab-admin" class="tab-content">
-    <!-- GestÃ£o de LicenÃ§a -->
+    <!-- Gest&atilde;o de Licen&ccedil;a -->
     <section class="panel">
-        <h2>&#128273; LICENÃ‡A DO SISTEMA</h2>
+        <h2>&#128273; LICEN&Ccedil;A DO SISTEMA</h2>
         <div id="licenseInfo" style="margin-bottom:16px;padding:14px;border:1px solid var(--accent3);font-size:12px;letter-spacing:1px;line-height:2"></div>
         <div class="form-row">
-            <div class="field"><label>Validade da LicenÃ§a</label><input id="lic_expiration" type="date"></div>
+            <div class="field"><label>Validade da Licen&ccedil;a</label><input id="lic_expiration" type="date"></div>
             <div class="field">
                 <label>Plano</label>
                 <select id="lic_plan">
@@ -617,10 +617,10 @@
                     <option value="0">BLOQUEADO</option>
                 </select>
             </div>
-            <div class="field btn-field"><button onclick="saveLicense()">SALVAR LICENÃ‡A</button></div>
+            <div class="field btn-field"><button onclick="saveLicense()">SALVAR LICEN&Ccedil;A</button></div>
         </div>
     </section>
-    <!-- Criar usuÃ¡rio revendedor -->
+    <!-- Criar usu&aacute;rio revendedor -->
     <section class="panel">
         <h2>&#128273; CRIAR ACESSO PARA REVENDEDOR</h2>
         <p class="panel-desc">Gere um login para um revendedor acessar o painel. Escolha o per&iacute;odo de licen&ccedil;a &mdash; apenas <strong>Plano Standard</strong> dispon&iacute;vel.</p>
@@ -713,7 +713,7 @@
         </div>
         <div class="table-wrap">
         <table>
-            <thead><tr><th>Data/Hora</th><th>Usu&aacute;rio</th><th>AÃ§Ã£o</th><th>Entidade</th><th>IP</th></tr></thead>
+            <thead><tr><th>Data/Hora</th><th>Usu&aacute;rio</th><th>A&ccedil;&atilde;o</th><th>Entidade</th><th>IP</th></tr></thead>
             <tbody id="auditList"><tr><td colspan="5" style="text-align:center;color:#555">Clique em &#8635; para carregar</td></tr></tbody>
         </table>
         </div>
@@ -749,7 +749,7 @@
     </section>
 </div>
 
-<!-- ABA USUÃRIOS (somente master) -->
+<!-- ABA USU&Aacute;RIOS (somente master) -->
 <div id="tab-users" class="tab-content">
 
     <!-- RESUMO FINANCEIRO DO MASTER -->
@@ -1168,7 +1168,7 @@
             Promise.all(stale.map(r => r.unregister())).then(() => {
                 navigator.serviceWorker.register('/dashboard/sw.js?v=3')
                     .then(reg => {
-                        // ForaÃ§a ativaÃ§Ã£o imediata do novo SW
+                        // Força ativação imediata do novo SW
                         if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
                         reg.addEventListener('updatefound', () => {
                             const newWorker = reg.installing;

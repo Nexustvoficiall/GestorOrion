@@ -29,6 +29,11 @@ const RenewalRequest = sequelize.define('RenewalRequest', {
     respondedAt: {
         type: DataTypes.DATE,
         allowNull: true
+    },
+    // false = usuário ainda não foi notificado sobre aprovação/rejeição
+    notifiedUser: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
     }
 });
 

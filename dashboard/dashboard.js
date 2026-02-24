@@ -224,7 +224,12 @@ function switchTab(name) {
     if (btn) btn.classList.add('active');
     if (name === 'financeiro') loadFinanceiro();
     if (name === 'extras') loadExtras();
-    if (name === 'perfil') loadMyRenewal();
+    if (name === 'perfil') {
+        loadMyRenewal();
+        // Limpa badge ao abrir aba perfil (notificações serão marcadas como vistas)
+        const pb = document.getElementById('perfilBadge');
+        if (pb) pb.style.display = 'none';
+    }
     if (name === 'admin') { loadResellerSelect(); loadUsers(); loadLicenseInfo(); updatePlanPreview('6m'); loadRenewalRequests(); loadPlanPrices(); }
     if (name === 'servidores') loadServers();
     if (name === 'users') { loadAdminUsers(); loadMasterFinancial(); }
@@ -435,6 +440,11 @@ async function loadUserInfo() {
         }
         // Configura seletor de perfil de usuário
         setupUserRoleSelector();
+        // Verifica notificações de renovação (personal e admin)
+        if (!_isMaster) {
+            checkRenewalNotifications();
+            setInterval(checkRenewalNotifications, 5 * 60 * 1000);
+        }
         // Mostra onboarding no primeiro acesso (não mostra para master)
         if (user.firstLogin && user.role !== 'master') {
             document.getElementById('modalOnboarding').style.display = 'flex';
@@ -1903,6 +1913,21 @@ async function loadMyRenewal() {
             if (!res.ok) return;
             const data = await res.json();
 
+            // Notificações de respostas não vistas (admin)
+            if (data.newlyResolved && data.newlyResolved.length) {
+                data.newlyResolved.forEach(r => {
+                    const isOk  = r.status === 'approved';
+                    const color = isOk ? '#00cc66' : '#ff4444';
+                    const msg   = isOk
+                        ? `✅ Renovação APROVADA! Plano: ${r.planLabel} — R$ ${Number(r.price||0).toFixed(2).replace('.',',')}`
+                        : `❌ Sua solicitação de renovação foi REJEITADA (${r.planLabel})`;
+                    showToast(msg, color, 6000);
+                });
+                showRenewalNotifBanner(data.newlyResolved);
+                const badge = document.getElementById('perfilBadge');
+                if (badge) badge.style.display = 'none';
+            }
+
             // Status atual
             const statusEl = document.getElementById('renewalCurrentStatus');
             if (statusEl) {
@@ -1971,6 +1996,21 @@ async function loadMyRenewal() {
         const res = await fetch('/renewal/my', { credentials: 'include' });
         if (!res.ok) return;
         const data = await res.json();
+
+        // Notificações de respostas não vistas (personal)
+        if (data.newlyResolved && data.newlyResolved.length) {
+            data.newlyResolved.forEach(r => {
+                const isOk  = r.status === 'approved';
+                const color = isOk ? '#00cc66' : '#ff4444';
+                const msg   = isOk
+                    ? `✅ Renovação APROVADA! Plano: ${r.planLabel} — R$ ${Number(r.price||0).toFixed(2).replace('.',',')}`
+                    : `❌ Sua solicitação de renovação foi REJEITADA (${r.planLabel})`;
+                showToast(msg, color, 6000);
+            });
+            showRenewalNotifBanner(data.newlyResolved);
+            const badge = document.getElementById('perfilBadge');
+            if (badge) badge.style.display = 'none';
+        }
 
         // Status atual
         const statusEl = document.getElementById('renewalCurrentStatus');
@@ -2123,6 +2163,12 @@ async function loadRenewalRequests() {
                 </td>
             </tr>`;
         }).join('');
+        // Atualiza badge da aba ADMIN
+        const admBadge = document.getElementById('adminRenewalBadge');
+        if (admBadge) {
+            if (rows.length > 0) { admBadge.style.display = ''; admBadge.textContent = rows.length; }
+            else admBadge.style.display = 'none';
+        }
     } catch (e) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#f44">Erro ao carregar</td></tr>'; }
 }
 
@@ -2138,13 +2184,49 @@ async function approveRenewal(id, username, planLabel) {
     } catch (e) { showToast('Erro de conexão', '#ff4444'); }
 }
 
+
 async function rejectRenewal(id, username) {
     if (!confirm(`Rejeitar solicitação de "${username}"?`)) return;
     try {
-        const res = await fetch(`/renewal/${id}/reject`, { method: 'POST', credentials: 'include' });
+        const res  = await fetch(`/renewal/${id}/reject`, { method: 'POST', credentials: 'include' });
+        const data = await res.json();
         if (res.ok) { showToast(`Solicitação de ${username} rejeitada.`, '#ffaa00'); loadRenewalRequests(); }
-        else showToast('Erro ao rejeitar', '#ff4444');
+        else showToast(data.error || 'Erro ao rejeitar', '#ff4444');
     } catch (e) { showToast('Erro de conexão', '#ff4444'); }
+}
+
+/* ===== NOTIFICAÇÕES DE RENOVAÇÃO ===== */
+async function checkRenewalNotifications() {
+    if (_isMaster) return;
+    try {
+        const res  = await fetch('/renewal/notifications', { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+        const badge = document.getElementById('perfilBadge');
+        if (badge) {
+            if (data.count > 0) { badge.style.display = ''; badge.textContent = '!'; }
+            else badge.style.display = 'none';
+        }
+    } catch (e) {}
+}
+
+function showRenewalNotifBanner(newlyResolved) {
+    const banner = document.getElementById('renewalNotifBanner');
+    if (!banner || !newlyResolved || !newlyResolved.length) return;
+    banner.innerHTML = newlyResolved.map(r => {
+        const isApproved = r.status === 'approved';
+        const bg    = isApproved ? '#0d1a0d' : '#1a0d0d';
+        const bc    = isApproved ? '#00aa44' : '#aa3300';
+        const color = isApproved ? '#00cc66' : '#ff4444';
+        const icon  = isApproved ? '✅' : '❌';
+        const msg   = isApproved
+            ? `Renovação <strong>APROVADA</strong>! Plano: ${r.planLabel} — R$ ${Number(r.price||0).toFixed(2).replace('.',',')}`
+            : `Solicitação de renovação <strong>REJEITADA</strong> (${r.planLabel}).`;
+        return `<div style="padding:10px 16px;background:${bg};border:1px solid ${bc};border-radius:4px;margin-bottom:6px;font-size:13px">
+            <span style="color:${color}">${icon} ${msg}</span>
+        </div>`;
+    }).join('');
+    banner.style.display = '';
 }
 
 /* ===== INIT ===== */

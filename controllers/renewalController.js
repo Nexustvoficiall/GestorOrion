@@ -167,20 +167,47 @@ exports.getAdminBilling = async (req, res) => {
     } catch (e) { console.error(e); res.status(500).json({ error: 'Erro ao calcular fatura' }); }
 };
 
+/* GET /renewal/notifications  — contagem de notificações não vistas (sem marcar como lidas) */
+exports.getNotifications = async (req, res) => {
+    try {
+        const userId = req.session.user.id;
+        const count  = await RenewalRequest.count({
+            where: { userId, status: ['approved', 'rejected'], notifiedUser: false }
+        });
+        res.json({ count });
+    } catch (e) { res.json({ count: 0 }); }
+};
+
 /* GET /renewal/my  — usuário vê seus próprios pedidos */
 exports.getMyRequests = async (req, res) => {
     try {
         const userId = req.session.user.id;
-        const rows   = await RenewalRequest.findAll({
+
+        // Busca pedidos novamente resolvidos (aprovado/rejeitado) que o usuário ainda não foi notificado
+        const newlyResolved = await RenewalRequest.findAll({
+            where: { userId, status: ['approved', 'rejected'], notifiedUser: false },
+            order: [['respondedAt', 'DESC']]
+        });
+
+        // Marca todos como notificados antes de responder
+        if (newlyResolved.length > 0) {
+            await RenewalRequest.update(
+                { notifiedUser: true },
+                { where: { id: newlyResolved.map(r => r.id) } }
+            );
+        }
+
+        const rows = await RenewalRequest.findAll({
             where:  { userId },
             order:  [['createdAt', 'DESC']],
             limit:  5
         });
         const user = await User.findByPk(userId, { attributes: ['panelExpiry', 'panelPlan'] });
         res.json({
-            requests:    rows,
-            panelExpiry: user?.panelExpiry || null,
-            panelPlan:   user?.panelPlan   || 'STANDARD'
+            requests:      rows,
+            newlyResolved: newlyResolved.map(r => ({ status: r.status, plan: r.plan, price: r.price, planLabel: PLAN_LABELS[r.plan] || r.plan })),
+            panelExpiry:   user?.panelExpiry || null,
+            panelPlan:     user?.panelPlan   || 'STANDARD'
         });
     } catch (e) { res.status(500).json({ error: 'Erro' }); }
 };

@@ -49,8 +49,8 @@
     <button class="tab-btn"        data-tab="servidores" onclick="switchTab('servidores')">&#128421; SERVIDORES</button>
     <button class="tab-btn"        data-tab="extras"     onclick="switchTab('extras')">&#128181; GASTOS EXTRAS</button>
     <button class="tab-btn"        data-tab="financeiro" onclick="switchTab('financeiro')">&#128202; FINANCEIRO</button>
-    <button class="tab-btn"        data-tab="perfil"    onclick="switchTab('perfil')">&#9881; MEU PERFIL</button>
-    <button class="tab-btn admin-tab" id="tabAdmin" data-tab="admin" onclick="switchTab('admin')" style="display:none">&#9873; ADMIN</button>
+    <button class="tab-btn"        data-tab="perfil"    onclick="switchTab('perfil')">&#9881; MEU PERFIL <span id="perfilBadge" style="display:none;background:#ff4444;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;vertical-align:middle;margin-left:4px">!</span></button>
+    <button class="tab-btn admin-tab" id="tabAdmin" data-tab="admin" onclick="switchTab('admin')" style="display:none">&#9873; ADMIN <span id="adminRenewalBadge" style="display:none;background:#ff4444;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;vertical-align:middle;margin-left:4px">0</span></button>
     <button class="tab-btn" id="tabUsers" data-tab="users" onclick="switchTab('users')" style="display:none">&#128101; USUÃRIOS</button>
 </nav>
 
@@ -388,6 +388,9 @@
 
 <!-- ABA PERFIL -->
 <div id="tab-perfil" class="tab-content">
+    <!-- BANNER NOTIFICACAO RENOVACAO -->
+    <div id="renewalNotifBanner" style="display:none;margin-bottom:14px"></div>
+
     <section class="panel">
         <h2>&#9881; MEU PERFIL</h2>
         <div class="perfil-grid">

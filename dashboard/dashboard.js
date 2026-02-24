@@ -214,6 +214,44 @@ function showFlash(msg) {
     setTimeout(() => el.remove(), 3000);
 }
 
+function showToast(msg, color, duration) {
+    const ms  = duration || 3500;
+    const bg  = color || '#00cc66';
+    // Cor do texto: preto para fundos claros (amarelo/verde claro), branco para escuros
+    const bright = ['#ffaa00','#ffe000','#f0c000'].includes(bg);
+    const el  = document.createElement('div');
+    el.innerHTML = msg;
+    Object.assign(el.style, {
+        position:     'fixed',
+        bottom:       '24px',
+        right:        '24px',
+        zIndex:       '99999',
+        background:   bg,
+        color:        bright ? '#000' : '#fff',
+        border:       '1px solid ' + bg,
+        padding:      '12px 20px',
+        fontFamily:   'Rajdhani,"Segoe UI",sans-serif',
+        fontSize:     '13px',
+        fontWeight:   '600',
+        letterSpacing:'0.5px',
+        borderRadius: '4px',
+        boxShadow:    '0 4px 18px rgba(0,0,0,0.55)',
+        maxWidth:     '380px',
+        lineHeight:   '1.4',
+        cursor:       'pointer',
+        transition:   'opacity 0.3s',
+        opacity:      '0'
+    });
+    document.body.appendChild(el);
+    // Anima entrada
+    requestAnimationFrame(() => { el.style.opacity = '1'; });
+    el.onclick = () => el.remove();
+    setTimeout(() => {
+        el.style.opacity = '0';
+        setTimeout(() => el.remove(), 350);
+    }, ms);
+}
+
 /* ===== ABAS ===== */
 function switchTab(name) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -2073,6 +2111,9 @@ async function loadMyRenewal() {
 async function submitRenewal() {
     const plan    = document.getElementById('rnv_plan')?.value || '6m';
     const message = document.getElementById('rnv_message')?.value.trim() || '';
+    const btn = document.querySelector('#renewalRequestForm button[onclick*="submitRenewal"]');
+    const origText = btn ? btn.textContent : null;
+    if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
     try {
         const res = await fetch('/renewal', {
             method: 'POST',
@@ -2081,14 +2122,18 @@ async function submitRenewal() {
             body: JSON.stringify({ plan, message })
         });
         const data = await res.json();
-        if (!res.ok) { showToast(data.error || 'Erro ao solicitar', '#ff4444'); return; }
-        showToast(`✅ Solicitação enviada! Plano: ${PLAN_LABELS_RNV[plan]} — R$ ${data.price}`, '#00cc66');
+        if (!res.ok) { showToast(data.error || 'Erro ao solicitar renovação', '#ff4444'); return; }
+        showToast(`✅ Solicitação enviada com sucesso! Plano: ${PLAN_LABELS_RNV[plan]} — R$ ${data.price}`, '#00cc66', 5000);
         loadMyRenewal();
-    } catch (e) { showToast('Erro de conexão', '#ff4444'); }
+    } catch (e) { showToast('Erro de conexão. Tente novamente.', '#ff4444'); }
+    finally { if (btn) { btn.disabled = false; btn.textContent = origText || 'SOLICITAR RENOVAÇÃO'; } }
 }
 
 async function submitAdminRenewal() {
     const message = document.getElementById('rnv_message_admin')?.value.trim() || '';
+    const btn = document.querySelector('#adminBillingSection button[onclick*="submitAdminRenewal"]');
+    const origText = btn ? btn.textContent : null;
+    if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
     try {
         const res = await fetch('/renewal', {
             method: 'POST',
@@ -2097,10 +2142,11 @@ async function submitAdminRenewal() {
             body: JSON.stringify({ plan: '1m', message })
         });
         const data = await res.json();
-        if (!res.ok) { showToast(data.error || 'Erro ao solicitar', '#ff4444'); return; }
-        showToast(`✅ Solicitação enviada! Total: R$ ${data.price}`, '#00cc66');
+        if (!res.ok) { showToast(data.error || 'Erro ao solicitar renovação', '#ff4444'); return; }
+        showToast(`✅ Solicitação enviada com sucesso! Total: R$ ${data.price}`, '#00cc66', 5000);
         loadMyRenewal();
-    } catch (e) { showToast('Erro de conexão', '#ff4444'); }
+    } catch (e) { showToast('Erro de conexão. Tente novamente.', '#ff4444'); }
+    finally { if (btn) { btn.disabled = false; btn.textContent = origText || 'SOLICITAR RENOVAÇÃO'; } }
 }
 
 async function loadPlanPrices() {

@@ -322,6 +322,7 @@ function switchTab(name) {
     if (name === 'servidores') loadServers();
     if (name === 'users') { loadAdminUsers(); loadMasterFinancial(); }
     if (name === 'mensalistas') loadMensalistas();
+    if (name === 'logs') loadAuditLogs();
 }
 
 /* ===== ADMINISTRADORES (ABA USERS — somente master) ===== */
@@ -390,6 +391,12 @@ async function loadLicenseStatus() {
         if (!d.valid) {
             banner.innerHTML = `<span style="background:#ff2222;color:#fff;padding:3px 10px;font-family:'Rajdhani','Segoe UI',sans-serif;font-size:9px;letter-spacing:1px">⚠ LICENÇA EXPIRADA</span>`;
             banner.style.display = 'block';
+        } else if (d.trial) {
+            // Trial ativo
+            const tDays = d.trialDaysLeft || 0;
+            const tColor = tDays <= 2 ? '#ff6622' : '#ffaa00';
+            banner.innerHTML = `<span style="background:${tColor};color:#000;padding:3px 12px;font-family:'Rajdhani','Segoe UI',sans-serif;font-size:9px;letter-spacing:1px;font-weight:700">🚀 TRIAL — ${tDays} DIA${tDays !== 1 ? 'S' : ''} RESTANTE${tDays !== 1 ? 'S' : ''}</span>`;
+            banner.style.display = 'block';
         } else if (d.warning) {
             banner.innerHTML = `<span style="background:#ffaa00;color:#000;padding:3px 10px;font-family:'Rajdhani','Segoe UI',sans-serif;font-size:9px;letter-spacing:1px">⚠ LICENÇA VENCE EM ${d.daysLeft}d</span>`;
             banner.style.display = 'block';
@@ -442,28 +449,155 @@ async function saveLicense() {
 }
 
 /* ===== LOG DE AUDITORIA ===== */
-async function loadAuditLog() {
-    const tb = document.getElementById('auditList');
+let _auditOffset = 0;
+const _auditLimit = 100;
+
+async function loadAuditLogs(loadMore = false) {
+    const tb = document.getElementById('auditBody');
     if (!tb) return;
-    tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#555">Carregando...</td></tr>';
+    if (!loadMore) {
+        _auditOffset = 0;
+        tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#555">Carregando...</td></tr>';
+    }
+
+    const search = (document.getElementById('logSearch')?.value || '').toLowerCase();
     try {
-        const r = await fetch('/audit?limit=100', { credentials: 'include' });
-        const logs = await r.json();
-        if (!logs.length) {
-            tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#555">Nenhum registro</td></tr>';
+        const r = await fetch(`/audit?limit=${_auditLimit}&offset=${_auditOffset}`, { credentials: 'include' });
+        if (!r.ok) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#f44">Sem permissão para ver logs</td></tr>'; return; }
+        let logs = await r.json();
+
+        // Filtro client-side
+        if (search) {
+            logs = logs.filter(l =>
+                (l.userUsername || '').toLowerCase().includes(search) ||
+                (l.action || '').toLowerCase().includes(search) ||
+                (l.entity || '').toLowerCase().includes(search) ||
+                (l.details || '').toLowerCase().includes(search)
+            );
+        }
+
+        if (!logs.length && !loadMore) {
+            tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#555">Nenhum registro encontrado</td></tr>';
             return;
         }
-        tb.innerHTML = logs.map(l => {
+
+        const ACTION_COLORS = {
+            'LOGIN': '#4499ff', 'LOGOUT': '#888',
+            'CREATE': '#00cc66', 'UPDATE': '#ffaa00', 'DELETE': '#ff4444',
+            'CREATE_CLIENT': '#00cc66', 'UPDATE_CLIENT': '#ffaa00', 'DELETE_CLIENT': '#ff4444',
+            'CREATE_RESELLER': '#00cc66', 'DELETE_RESELLER': '#ff4444',
+            'CREATE_TENANT': '#00cc66', 'REGISTER_TENANT': '#00aaff',
+            'APPROVE_RENEWAL': '#00cc66', 'REJECT_RENEWAL': '#ff4444',
+            'EDIT_USER': '#ffaa00', 'DELETE_USER': '#ff4444',
+        };
+
+        const rows = logs.map(l => {
             const dt = new Date(l.createdAt).toLocaleString('pt-BR');
+            const actionColor = ACTION_COLORS[l.action] || '#ccc';
+            let details = '';
+            try {
+                const d = JSON.parse(l.details || '{}');
+                details = Object.entries(d).filter(([k,v]) => v !== undefined && k !== 'password')
+                    .map(([k,v]) => `<span style="color:#888">${k}:</span><span style="color:#aaa"> ${String(v).substring(0,40)}</span>`)
+                    .join('&nbsp;·&nbsp;');
+            } catch(_) { details = l.details || ''; }
             return `<tr>
-                <td style="font-size:11px">${dt}</td>
-                <td>${l.userUsername || '-'}</td>
-                <td><span style="color:var(--accent);font-size:10px;letter-spacing:1px">${l.action}</span></td>
-                <td>${l.entity ? l.entity + (l.entityId ? ' #' + l.entityId : '') : '-'}</td>
-                <td style="font-size:11px">${l.ip || '-'}</td>
+                <td style="font-size:11px;white-space:nowrap">${dt}</td>
+                <td style="font-weight:600;color:#ccc">${l.userUsername || '<span style="color:#555">-</span>'}</td>
+                <td><span style="color:${actionColor};font-size:10px;font-weight:700;letter-spacing:1px">${l.action}</span></td>
+                <td style="font-size:11px;color:#aaa">${l.entity ? l.entity + (l.entityId ? ' <span style="color:#555">#'+l.entityId+'</span>' : '') : '-'}</td>
+                <td style="font-size:11px;max-width:280px;overflow:hidden;text-overflow:ellipsis">${details}</td>
+                <td style="font-size:11px;color:#666">${l.ip || '-'}</td>
             </tr>`;
         }).join('');
-    } catch(e) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#f44">Erro ao carregar logs</td></tr>'; }
+
+        if (loadMore) {
+            tb.innerHTML += rows;
+        } else {
+            tb.innerHTML = rows || '<tr><td colspan="6" style="text-align:center;color:#555">Nenhum registro</td></tr>';
+        }
+
+        _auditOffset += logs.length;
+        const pager = document.getElementById('auditPager');
+        if (pager) {
+            pager.textContent = `Mostrando ${_auditOffset} registro(s). Clique em "Mais" para carregar mais.`;
+        }
+    } catch(e) {
+        tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#f44">Erro ao carregar logs</td></tr>';
+    }
+}
+
+/* ===== EXPORTAR RELATÓRIO (PDF / EXCEL) ===== */
+function exportReport(format) {
+    const month = document.getElementById('fin_month')?.value || new Date().getMonth() + 1;
+    const year  = document.getElementById('fin_year')?.value  || new Date().getFullYear();
+    const url   = `/report/export?format=${format}&month=${month}&year=${year}`;
+    // Abre em nova aba para realizar o download
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `relatorio-orion-${String(month).padStart(2,'0')}-${year}.${format === 'pdf' ? 'pdf' : 'xlsx'}`;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    showToast(`📥 Preparando ${format.toUpperCase()}...`, '#1a6fff', 3000);
+}
+
+/* ===== WHITE-LABEL: aplica branding do tenant ===== */
+async function loadTenantBranding() {
+    try {
+        const r = await fetch('/tenant/me', { credentials: 'include' });
+        if (!r.ok) return; // master não tem tenant
+        const t = await r.json();
+        if (!t) return;
+
+        // Título / nome
+        if (t.brandName) {
+            const el = document.getElementById('siteTitle');
+            if (el) el.textContent = t.brandName.toUpperCase();
+            document.title = t.brandName;
+        }
+
+        // Cor primária
+        if (t.primaryColor && t.primaryColor !== '#1a6fff') {
+            applyBrandColor(t.primaryColor);
+        }
+
+        // Logo do tenant (logoUrl) — apenas se não há logo do usuário
+        const localLogo = localStorage.getItem('nexus_logo_' + (_userId || ''));
+        if (!localLogo && t.logoUrl) {
+            const img = document.getElementById('topLogoImg');
+            if (img) { img.src = t.logoUrl; img.style.display = 'block'; }
+            const icon = document.getElementById('topLogoIcon');
+            if (icon) icon.style.display = 'none';
+        }
+
+        // Trial: exibe dados de trial no banner de licença (complementar a loadLicenseStatus)
+        if (t.trialEndsAt) {
+            const trialEnd = new Date(t.trialEndsAt);
+            const now = new Date();
+            const daysLeft = Math.ceil((trialEnd - now) / 86400000);
+            if (daysLeft > 0) {
+                const banner = document.getElementById('licenseBanner');
+                if (banner && banner.style.display === 'none') {
+                    const tColor = daysLeft <= 2 ? '#ff6622' : '#ffaa00';
+                    banner.innerHTML = `<span style="background:${tColor};color:#000;padding:3px 12px;font-family:'Rajdhani','Segoe UI',sans-serif;font-size:9px;letter-spacing:1px;font-weight:700">🚀 TRIAL — ${daysLeft} DIA${daysLeft !== 1 ? 'S' : ''} RESTANTE${daysLeft !== 1 ? 'S' : ''}</span>`;
+                    banner.style.display = 'block';
+                }
+            }
+        }
+    } catch(_) {}
+}
+
+function applyBrandColor(hex) {
+    // Aplica como CSS custom properties
+    const r = document.documentElement;
+    r.style.setProperty('--brand-color', hex);
+    // Map de cores para compatibilidade com o sistema de temas existente
+    // Tenta detectar a cor mais próxima
+    const colorMap = { '#e53935':'red','#1a6fff':'blue','#f9a825':'yellow','#7b1fa2':'purple','#2e7d32':'green','#e65100':'orange' };
+    const closest = colorMap[hex.toLowerCase()];
+    if (closest) applyThemeLocally(closest);
 }
 
 /* ===== AUTH ===== */
@@ -493,11 +627,21 @@ async function loadUserInfo() {
         if (_isAdmin) {
             const tab = document.getElementById('tabAdmin');
             if (tab) tab.style.display = '';
+            // Admin pode configurar white-label
+            const brandSec = document.getElementById('brandingSection');
+            if (brandSec) { brandSec.style.display = ''; loadBrandingForm(); }
         }
-        // Aba USUÁRIOS visível apenas para master
         if (_isMaster) {
             const tabU = document.getElementById('tabUsers');
             if (tabU) tabU.style.display = '';
+            // Logs de auditoria visíveis para master e admin
+            const tabL = document.getElementById('tabLogs');
+            if (tabL) tabL.style.display = '';
+        }
+        if (_isAdmin && !_isMaster) {
+            // Admin também vê logs
+            const tabL = document.getElementById('tabLogs');
+            if (tabL) tabL.style.display = '';
         }
         // Master ou admin podem configurar preços para personal
         if (_isMaster || _isAdmin) {
@@ -2510,10 +2654,57 @@ function previewSaldo() {
     if (caixaCard) caixaCard.textContent = fmt(val);
 }
 
+/* ===== WHITE-LABEL BRANDING (admin) ===== */
+async function loadBrandingForm() {
+    try {
+        const r = await fetch('/tenant/me', { credentials: 'include' });
+        if (!r.ok) return;
+        const t = await r.json();
+        const el_name  = document.getElementById('brand_name');
+        const el_color = document.getElementById('brand_color');
+        const el_logo  = document.getElementById('brand_logo');
+        if (el_name  && t.brandName)    el_name.value  = t.brandName;
+        if (el_color && t.primaryColor) el_color.value = t.primaryColor;
+        if (el_logo  && t.logoUrl)      el_logo.value  = t.logoUrl;
+    } catch(_) {}
+}
+
+async function saveBranding() {
+    const brandName    = document.getElementById('brand_name')?.value?.trim();
+    const primaryColor = document.getElementById('brand_color')?.value;
+    const logoUrl      = document.getElementById('brand_logo')?.value?.trim();
+    const msg          = document.getElementById('brandingMsg');
+    try {
+        const r = await fetch('/tenant/me', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ brandName, primaryColor, logoUrl: logoUrl || null })
+        });
+        if (r.ok) {
+            if (msg) { msg.textContent = '✅ Branding salvo!'; msg.className = 'pwd-msg ok'; }
+            showToast('✅ Branding salvo com sucesso!', '#00cc66', 3000);
+            // Aplica imediatamente
+            if (brandName) {
+                const el = document.getElementById('siteTitle');
+                if (el) el.textContent = brandName.toUpperCase();
+                document.title = brandName;
+            }
+            if (primaryColor) applyBrandColor(primaryColor);
+        } else {
+            const d = await r.json();
+            if (msg) { msg.textContent = '❌ ' + (d.error || 'Erro ao salvar'); msg.className = 'pwd-msg err'; }
+        }
+    } catch(e) {
+        if (msg) { msg.textContent = '❌ Erro de conexão'; msg.className = 'pwd-msg err'; }
+    }
+}
+
 window.onload = async () => {
     loadTheme();
     loadProfile();
     await loadUserInfo();
+    loadTenantBranding(); // white-label: aplica branding do tenant
     await loadServers();
     loadClients();
     loadExpiringSoon();

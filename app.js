@@ -111,8 +111,17 @@ app.use('/dashboard', (req, res, next) => {
     next();
 }, express.static(path.join(__dirname, 'dashboard')));
 
-/* ROTA RAIZ */
-app.get('/', (req, res) => res.redirect('/login'));
+/* ROTA RAIZ — landing page pública */
+app.get('/', (req, res) => {
+    if (req.session?.user) return res.redirect('/dashboard');
+    res.sendFile(path.join(__dirname, 'public', 'landing.html'));
+});
+
+/* PÁGINA DE CADASTRO (auto-registro de tenant) */
+app.get('/registro', (req, res) => {
+    if (req.session?.user) return res.redirect('/dashboard');
+    res.sendFile(path.join(__dirname, 'public', 'registro.html'));
+});
 
 /* ===== RESET DE EMERGÊNCIA (localhost ou token secreto) ===== */
 app.get('/reset-admin', async (req, res) => {
@@ -370,6 +379,10 @@ sequelize.sync().then(async () => {
             await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "adesaoPaga" BOOLEAN DEFAULT false;`);
             await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "paymentsJSON" TEXT;`);
             await sequelize.query(`ALTER TABLE IF EXISTS "RenewalRequests" ADD COLUMN IF NOT EXISTS "notifiedUser" BOOLEAN DEFAULT false;`);
+            /* Novas colunas: trial, email, white-label */
+            await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "trialEndsAt" TIMESTAMP;`);
+            await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "email" VARCHAR(255);`);
+            await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "email" VARCHAR(255);`);
         } catch (_) { /* coluna já existe — ignorar */ }
     } else {
         // SQLite: sintaxe sem IF NOT EXISTS
@@ -387,6 +400,10 @@ sequelize.sync().then(async () => {
         try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "adesaoPaga" BOOLEAN DEFAULT 0`); } catch (_) {}
         try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "paymentsJSON" TEXT`); } catch (_) {}
         try { await sequelize.query(`ALTER TABLE "RenewalRequests" ADD COLUMN "notifiedUser" BOOLEAN DEFAULT 0`); } catch (_) {}
+        /* Novas colunas: trial, email */
+        try { await sequelize.query(`ALTER TABLE "Tenants" ADD COLUMN "trialEndsAt" DATETIME`); } catch (_) {}
+        try { await sequelize.query(`ALTER TABLE "Tenants" ADD COLUMN "email" VARCHAR(255)`); } catch (_) {}
+        try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "email" VARCHAR(255)`); } catch (_) {}
     }
     // Migra role 'reseller' → 'personal' (renomeio de perfil) — roda em PG e SQLite
     try { await sequelize.query(`UPDATE "Users" SET "role" = 'personal' WHERE "role" = 'reseller'`); } catch (_) {}

@@ -39,6 +39,16 @@ const Tenant = sequelize.define('Tenant', {
     isActive: {
         type: DataTypes.BOOLEAN,
         defaultValue: true
+    },
+    // Trial: data de término do período gratuito (7 dias após criação)
+    trialEndsAt: {
+        type: DataTypes.DATE,
+        allowNull: true  // null = sem trial (tenant criado pelo master diretamente)
+    },
+    // Contato do admin do tenant
+    email: {
+        type: DataTypes.STRING,
+        allowNull: true
     }
 });
 

@@ -1,7 +1,16 @@
-const { Client } = require('../models');
+const { Client, Tenant } = require('../models');
 const dayjs = require('dayjs');
 const { audit } = require('../middlewares/authMiddleware');
 const { Op } = require('sequelize');
+
+// Limites de clientes por plano de tenant
+const PLAN_CLIENT_LIMITS = {
+    'BASICO':      30,
+    'PRO':         150,
+    'ENTERPRISE':  999999,
+    'PREMIUM':     999999,
+    'TRIAL':       10   // trial gratuito
+};
 
 /* Helper: filtra por userId de acordo com o role
    - master: vê seus próprios registros OU registros legados sem userId (compatibilidade retroativa)
@@ -24,6 +33,25 @@ exports.create = async (req, res) => {
     const sessionUser = req.session?.user;
 
     if (!tenantId) return res.status(403).json({ error: 'Tenant não identificado' });
+
+    // Verificar limite de clientes do plano
+    try {
+        const tenant = await Tenant.findByPk(tenantId);
+        if (tenant) {
+            const now = new Date();
+            const trialActive = tenant.trialEndsAt && new Date(tenant.trialEndsAt) > now;
+            const planKey = trialActive ? 'TRIAL' : (tenant.plan || 'BASICO').toUpperCase();
+            const limit = PLAN_CLIENT_LIMITS[planKey] ?? 30;
+            const total = await Client.count({ where: { tenantId } });
+            if (total >= limit) {
+                const planName = trialActive ? 'Trial (7 dias)' : planKey;
+                return res.status(403).json({
+                    error: 'LIMITE_PLANO',
+                    message: `Limite de ${limit} clientes atingido para o plano ${planName}. Faça upgrade para continuar.`
+                });
+            }
+        }
+    } catch (_) { /* não bloquear em caso de erro de verificação */ }
 
     // userId sempre = id do usuário logado (garante isolamento para todos os roles)
     const userId = sessionUser?.id || null;

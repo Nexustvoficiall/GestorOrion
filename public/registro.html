@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Criar Conta — Gestor Orion</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      background:#0a0a12; color:#ccc; font-family:'Segoe UI',sans-serif;
+      min-height:100vh; display:flex; align-items:center; justify-content:center;
+      padding:20px;
+    }
+    .wrap { width:100%; max-width:460px; }
+    .logo { text-align:center; margin-bottom:32px; }
+    .logo h1 { font-family:'Orbitron',sans-serif; color:#fff; font-size:22px; letter-spacing:3px; }
+    .logo h1 span { color:#1a6fff; }
+    .logo p { color:#666; font-size:11px; letter-spacing:2px; margin-top:4px; }
+
+    .card { background:#12121e; border:1px solid #2a2a3c; border-radius:12px; padding:36px 32px; }
+    .card h2 { font-size:14px; color:#fff; letter-spacing:2px; margin-bottom:6px; font-family:'Orbitron',sans-serif; }
+    .card .sub { font-size:12px; color:#666; margin-bottom:28px; }
+
+    .trial-badge {
+      background: linear-gradient(135deg, rgba(26,111,255,.2), rgba(26,111,255,.05));
+      border:1px solid rgba(26,111,255,.4); border-radius:8px;
+      padding:12px 16px; margin-bottom:24px; display:flex; align-items:center; gap:10px;
+    }
+    .trial-badge .icon { font-size:20px; }
+    .trial-badge p { font-size:13px; color:#6699ff; }
+    .trial-badge strong { color:#fff; }
+
+    label { display:block; font-size:10px; letter-spacing:1.5px; color:#888; margin-bottom:6px; margin-top:16px; }
+    input[type=text], input[type=password], input[type=email] {
+      width:100%; background:#1e1e30; border:1px solid #333; color:#fff;
+      padding:11px 14px; border-radius:6px; font-size:14px;
+      transition: border-color .2s;
+      -webkit-appearance:none;
+    }
+    input:focus { outline:none; border-color:#1a6fff; }
+    input::placeholder { color:#555; }
+
+    .hint { font-size:11px; color:#555; margin-top:4px; }
+
+    .btn-submit {
+      width:100%; background:#1a6fff; color:#fff; border:none;
+      padding:13px; border-radius:6px; font-size:14px; font-weight:bold;
+      font-family:'Orbitron',sans-serif; letter-spacing:1px; cursor:pointer;
+      margin-top:24px; transition: background .2s;
+    }
+    .btn-submit:hover { background:#0044cc; }
+    .btn-submit:disabled { opacity:.5; cursor:default; }
+
+    .msg { padding:12px 16px; border-radius:6px; font-size:13px; margin-top:16px; display:none; }
+    .msg.ok  { background:#001a00; color:#44ff88; border:1px solid #006600; }
+    .msg.err { background:#1a0000; color:#ff6666; border:1px solid #660000; }
+
+    .links { margin-top:20px; text-align:center; font-size:12px; color:#555; }
+    .links a { color:#1a6fff; text-decoration:none; }
+    .links a:hover { text-decoration:underline; }
+
+    .divider { border-top:1px solid #1e1e30; margin:16px 0 0; }
+
+    .terms { font-size:11px; color:#555; margin-top:14px; text-align:center; }
+    .terms a { color:#888; }
+
+    /* Loader */
+    .spinner { display:inline-block; width:16px; height:16px; border:2px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation: spin .6s linear infinite; vertical-align:middle; margin-right:6px; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    @media(max-width:480px) {
+      .card { padding:24px 18px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="logo">
+    <h1>GESTOR <span>ORION</span></h1>
+    <p>PLATAFORMA DE GESTÃO IPTV</p>
+  </div>
+
+  <div class="card">
+    <h2>CRIAR CONTA GRÁTIS</h2>
+    <p class="sub">Preencha os dados abaixo para criar sua conta</p>
+
+    <div class="trial-badge">
+      <span class="icon">🚀</span>
+      <p><strong>7 dias grátis</strong> — sem cartão de crédito. Cancele quando quiser.</p>
+    </div>
+
+    <div id="msg" class="msg"></div>
+
+    <label>NOME DA SUA EMPRESA / PAINEL *</label>
+    <input type="text" id="tenantName" placeholder="Ex: João IPTV, Minha Revenda..." maxlength="60" autocomplete="organization">
+    <p class="hint">Será o nome exibido no painel e no branding.</p>
+
+    <label>SEU NOME DE USUÁRIO *</label>
+    <input type="text" id="username" placeholder="Ex: admin, joao, meunome..." maxlength="30" autocomplete="username">
+    <p class="hint">Usado para fazer login. Sem espaços ou acentos.</p>
+
+    <label>SENHA *</label>
+    <input type="password" id="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+
+    <label>CONFIRMAR SENHA *</label>
+    <input type="password" id="password2" placeholder="Repita sua senha" autocomplete="new-password">
+
+    <label>E-MAIL (opcional, para recuperação)</label>
+    <input type="email" id="email" placeholder="seu@email.com" autocomplete="email">
+    <p class="hint">Usado para envio do link de redefinição de senha.</p>
+
+    <button class="btn-submit" id="btnReg" onclick="doRegister()">CRIAR MINHA CONTA</button>
+
+    <p class="terms">Ao criar sua conta, você concorda com os <a href="/termos" target="_blank">Termos de Uso</a>.</p>
+
+    <div class="divider"></div>
+    <div class="links">
+      Já tem uma conta? <a href="/login">Fazer login</a>
+    </div>
+  </div>
+</div>
+
+<script>
+async function doRegister() {
+  const tenantName = document.getElementById('tenantName').value.trim();
+  const username   = document.getElementById('username').value.trim();
+  const password   = document.getElementById('password').value;
+  const password2  = document.getElementById('password2').value;
+  const email      = document.getElementById('email').value.trim();
+
+  const msgEl = document.getElementById('msg');
+  const btn   = document.getElementById('btnReg');
+
+  function showMsg(text, ok) {
+    msgEl.textContent = text;
+    msgEl.className = 'msg ' + (ok ? 'ok' : 'err');
+    msgEl.style.display = 'block';
+    msgEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // Validações client-side
+  if (!tenantName) return showMsg('❌ Informe o nome da sua empresa/painel.', false);
+  if (tenantName.length < 3) return showMsg('❌ Nome muito curto (mínimo 3 caracteres).', false);
+  if (!username) return showMsg('❌ Informe um nome de usuário.', false);
+  if (username.length < 3) return showMsg('❌ Usuário muito curto (mínimo 3 caracteres).', false);
+  if (/\s/.test(username)) return showMsg('❌ O usuário não pode ter espaços.', false);
+  if (!password) return showMsg('❌ Informe uma senha.', false);
+  if (password.length < 6) return showMsg('❌ Senha muito curta (mínimo 6 caracteres).', false);
+  if (password !== password2) return showMsg('❌ As senhas não coincidem.', false);
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>CRIANDO CONTA...';
+
+  try {
+    const res = await fetch('/auth/register-tenant', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tenantName, username, password, email: email || undefined })
+    });
+    const data = await res.json();
+
+    if (res.ok && data.ok) {
+      showMsg('✅ Conta criada! Redirecionando para o painel...', true);
+      setTimeout(() => { window.location.href = '/dashboard'; }, 1500);
+    } else {
+      showMsg('❌ ' + (data.error || 'Erro ao criar conta. Tente novamente.'), false);
+      btn.disabled = false;
+      btn.innerHTML = 'CRIAR MINHA CONTA';
+    }
+  } catch (err) {
+    showMsg('❌ Erro de conexão. Verifique sua internet e tente novamente.', false);
+    btn.disabled = false;
+    btn.innerHTML = 'CRIAR MINHA CONTA';
+  }
+}
+
+// Enter para enviar
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') doRegister();
+});
+</script>
+
+</body>
+</html>

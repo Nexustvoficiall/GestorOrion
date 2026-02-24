@@ -37,9 +37,13 @@ async function checkLicense(req, res, next) {
             });
         }
 
-        if (tenant.licenseExpiration) {
+        // Trial ativo: libera acesso mesmo sem licenseExpiration
+        const now = new Date();
+        const trialActive = tenant.trialEndsAt && new Date(tenant.trialEndsAt) > now;
+
+        if (!trialActive && tenant.licenseExpiration) {
             const exp = new Date(tenant.licenseExpiration + 'T23:59:59');
-            if (exp < new Date()) {
+            if (exp < now) {
                 return res.status(403).json({
                     error: 'LICENCA_EXPIRADA',
                     message: 'Licença expirada em ' + new Date(tenant.licenseExpiration).toLocaleDateString('pt-BR'),
@@ -47,6 +51,9 @@ async function checkLicense(req, res, next) {
                 });
             }
         }
+
+        // Se não tem trial nem licenseExpiration e não é ativo sem data → verifica se precisa bloquear
+        // (tenant criado pelo master sem data = acesso ilimitado configurado pelo master)
 
         req.tenant = tenant;
 
@@ -79,8 +86,11 @@ async function checkLicensePage(req, res, next) {
         const tenant = await getTenant(tenantId);
         if (!tenant) return next();
 
+        const now = new Date();
+        const trialActive = tenant.trialEndsAt && new Date(tenant.trialEndsAt) > now;
+
         const expired = !tenant.isActive ||
-            (tenant.licenseExpiration && new Date(tenant.licenseExpiration + 'T23:59:59') < new Date());
+            (!trialActive && tenant.licenseExpiration && new Date(tenant.licenseExpiration + 'T23:59:59') < now);
 
         // Verifica validade do painel do personal ou admin
         let panelExpired = false;

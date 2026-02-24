@@ -1,10 +1,11 @@
-const { User, Client } = require('../models');
+const { User, Client, Tenant } = require('../models');
 const { Op, fn, col, literal } = require('sequelize');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { audit } = require('../middlewares/authMiddleware');
+const emailService = require('../services/emailService');
 
 function saveCredentials(username, plainPassword) {
     const file = path.join(__dirname, '..', 'ACESSO_ADMIN.txt');
@@ -539,6 +540,104 @@ exports.deletePayment = async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Erro ao excluir pagamento' });
+    }
+};
+
+/* ESQUECI MINHA SENHA — envia e-mail com link de reset (rota pública) */
+exports.forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email || !email.includes('@')) return res.status(400).json({ error: 'Informe um e-mail válido' });
+
+        // Busca usuário pelo campo email (adicionado ao modelo quando disponível)
+        // Como o modelo atual não tem campo email, geramos o token para o username == email
+        // Suporte a campo email quando existir na tabela Users
+        const user = await User.findOne({ where: { email: email.toLowerCase().trim() } }).catch(() => null);
+        // Sempre retorna 200 para não revelar se o e-mail existe (segurança)
+        if (!user) return res.json({ ok: true, message: 'Se o e-mail estiver cadastrado, você receberá as instruções.' });
+
+        const token  = crypto.randomBytes(32).toString('hex');
+        const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        await user.update({ resetToken: token, resetTokenExpiry: expiry });
+        await emailService.sendPasswordReset(email, user.username, token);
+        res.json({ ok: true, message: 'Se o e-mail estiver cadastrado, você receberá as instruções.' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Erro interno' });
+    }
+};
+
+/* AUTO-CADASTRO DE TENANT (rota pública — landing page) */
+exports.registerTenant = async (req, res) => {
+    try {
+        const { tenantName, username, password, email } = req.body;
+        if (!tenantName || !username || !password)
+            return res.status(400).json({ error: 'Campos obrigatórios: tenantName, username, password' });
+        if (password.length < 6)
+            return res.status(400).json({ error: 'Senha muito curta (mínimo 6 caracteres)' });
+
+        // Gera slug único a partir do nome
+        let baseSlug = tenantName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        let slug = baseSlug;
+        let attempt = 1;
+        while (await Tenant.findOne({ where: { slug } })) {
+            slug = `${baseSlug}-${attempt++}`;
+        }
+
+        // Verifica se username já está em uso
+        const existingUser = await User.findOne({ where: { username: username.trim() } });
+        if (existingUser) return res.status(400).json({ error: 'Nome de usuário já está em uso' });
+
+        // Trial: 7 dias a partir de hoje
+        const trialEndsAt = new Date();
+        trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+
+        const tenant = await Tenant.create({
+            name:      tenantName.trim(),
+            slug,
+            brandName: tenantName.trim(),
+            primaryColor: '#1a6fff',
+            plan: 'BASICO',
+            isActive: true,
+            licenseExpiration: null,
+            trialEndsAt
+        });
+
+        const hash = await bcrypt.hash(password, 10);
+        const user = await User.create({
+            username: username.trim(),
+            password: hash,
+            role: 'admin',
+            tenantId: tenant.id,
+            email: (email || '').toLowerCase().trim() || null,
+            panelExpiry: null, // trial controla o acesso
+            firstLogin: true
+        });
+
+        // Envia boas-vindas por e-mail se fornecido
+        if (email && email.includes('@')) {
+            emailService.sendWelcome(email, username, tenantName).catch(() => {});
+        }
+
+        await audit(req, 'REGISTER_TENANT', 'Tenant', null, { tenantName, slug, username });
+
+        // Auto-login após registro
+        req.session.user = {
+            id:         user.id,
+            username:   user.username,
+            role:       user.role,
+            tenantId:   tenant.id,
+            firstLogin: true,
+            themeColor: 'red'
+        };
+
+        req.session.save(err => {
+            if (err) return res.status(500).json({ error: 'Erro ao iniciar sessão' });
+            res.json({ ok: true, tenantId: tenant.id, slug, trialEndsAt });
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Erro ao criar conta: ' + (err.message || '') });
     }
 };
 

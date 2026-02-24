@@ -92,6 +92,11 @@ const User = sequelize.define('User', {
     paymentsJSON: {
         type: DataTypes.TEXT,
         allowNull: true
+    },
+    // E-mail do usuário (usado para reset de senha e notificações)
+    email: {
+        type: DataTypes.STRING,
+        allowNull: true
     }
 });
 

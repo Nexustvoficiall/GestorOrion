@@ -23,6 +23,12 @@ router.post('/first-login-done',requireAuth, ctrl.markFirstLoginDone);
 /* Reset de senha por token (público) */
 router.post('/reset-by-token',  ctrl.resetByToken);
 
+/* Esqueci minha senha — envia e-mail com link (público) */
+router.post('/forgot-password', loginLimiter, ctrl.forgotPassword);
+
+/* Auto-cadastro de tenant — landing page (público) */
+router.post('/register-tenant', ctrl.registerTenant);
+
 /* Admin gera link de reset para um usuário */
 router.post('/users/:userId/reset-token', requireAuth, requireAdmin, enforceTenant, ctrl.generateResetToken);
 

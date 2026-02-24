@@ -78,12 +78,29 @@ exports.licenseStatus = async (req, res) => {
 
         if (!tenant.isActive) return res.json({ valid: false, reason: 'Licença inativa' });
 
+        const now = new Date();
+
+        // Trial ativo: sem licenseExpiration mas com trialEndsAt no futuro
+        if (!tenant.licenseExpiration && tenant.trialEndsAt) {
+            const trialEnd = new Date(tenant.trialEndsAt);
+            const trialDaysLeft = Math.ceil((trialEnd - now) / 86400000);
+            if (trialDaysLeft > 0) {
+                return res.json({
+                    valid: true, trial: true, trialDaysLeft,
+                    daysLeft: trialDaysLeft, plan: tenant.plan,
+                    brandName: tenant.brandName, primaryColor: tenant.primaryColor,
+                    warning: trialDaysLeft <= 3
+                });
+            }
+            // Trial expirado + sem licenseExpiration = inválido
+            return res.json({ valid: false, trial: true, trialDaysLeft: 0, reason: 'Trial expirado' });
+        }
+
         if (!tenant.licenseExpiration) {
             return res.json({ valid: true, daysLeft: null, plan: tenant.plan, brandName: tenant.brandName, primaryColor: tenant.primaryColor });
         }
 
         const exp = new Date(tenant.licenseExpiration + 'T23:59:59');
-        const now = new Date();
         const daysLeft = Math.ceil((exp - now) / 86400000);
 
         res.json({

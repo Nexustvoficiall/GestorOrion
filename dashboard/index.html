@@ -52,6 +52,7 @@
     <button class="tab-btn"        data-tab="perfil"    onclick="switchTab('perfil')">&#9881; MEU PERFIL <span id="perfilBadge" style="display:none;background:#ff4444;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;vertical-align:middle;margin-left:4px">!</span></button>
     <button class="tab-btn admin-tab" id="tabAdmin" data-tab="admin" onclick="switchTab('admin')" style="display:none">&#9873; ADMIN <span id="adminRenewalBadge" style="display:none;background:#ff4444;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;vertical-align:middle;margin-left:4px">0</span></button>
     <button class="tab-btn" id="tabUsers" data-tab="users" onclick="switchTab('users')" style="display:none">&#128101; USUÃRIOS</button>
+    <button class="tab-btn" id="tabLogs" data-tab="logs" onclick="switchTab('logs')" style="display:none">&#128202; LOGS</button>
 </nav>
 
 <main>
@@ -301,6 +302,8 @@
                 </select>
                 <select id="fin_year" style="min-width:80px"></select>
                 <button onclick="loadFinanceiro()" style="padding:6px 18px;font-size:11px">&#128269; APLICAR</button>
+                <button onclick="exportReport('xlsx')" style="padding:6px 14px;font-size:11px;background:#1e5c1e;border-color:#2a8a2a" title="Exportar Excel">&#128196; EXCEL</button>
+                <button onclick="exportReport('pdf')" style="padding:6px 14px;font-size:11px;background:#5c1e1e;border-color:#8a2a2a" title="Exportar PDF">&#128196; PDF</button>
             </div>
             <span id="fin_period_label" style="font-size:11px;color:var(--text-muted);letter-spacing:1px;margin-left:auto"></span>
         </div>
@@ -473,7 +476,30 @@
 
     <!-- Renovação do Painel -->
     <section class="panel" id="renewalSection">
-        <h2>&#128260; RENOVAÇÃO DO PAINEL</h2>
+    <!-- BRANDING WHITE-LABEL (admin only) -->
+    <section class="panel" id="brandingSection" style="display:none">
+        <h2>&#127912; BRANDING (WHITE-LABEL)</h2>
+        <p style="font-size:12px;color:var(--text-muted);margin:4px 0 16px">Personalize o nome e a aparência do painel para seus usuários.</p>
+        <div class="form-row">
+            <div class="field">
+                <label>Nome do Painel</label>
+                <input id="brand_name" placeholder="Ex: João IPTV Manager" maxlength="60">
+            </div>
+            <div class="field" style="max-width:180px">
+                <label>Cor Primária (hex)</label>
+                <input id="brand_color" type="color" value="#1a6fff" style="height:38px;padding:2px 4px;cursor:pointer">
+            </div>
+            <div class="field">
+                <label>URL do Logo (imagem)</label>
+                <input id="brand_logo" placeholder="https://... ou deixe vazio" maxlength="500">
+            </div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+            <button onclick="saveBranding()">&#128190; SALVAR BRANDING</button>
+            <button onclick="loadBrandingForm()" class="btn-secondary" style="font-size:11px">&#128260; RECARREGAR</button>
+        </div>
+        <div id="brandingMsg" class="pwd-msg" style="margin-top:10px"></div>
+    </section>        <h2>&#128260; RENOVAÇÃO DO PAINEL</h2>
         <div id="renewalCurrentStatus" style="margin-bottom:16px;padding:12px 16px;border:1px solid var(--accent3);font-size:12px;letter-spacing:1px;line-height:2.2">Carregando...</div>
         <div id="renewalPendingMsg" style="display:none;margin-bottom:14px;padding:10px 16px;background:#1a3a0a;border:1px solid #00aa44;border-radius:4px;color:#00cc66;font-size:12px;letter-spacing:1px">
             &#9203; Você já tem uma solicitação <strong>pendente</strong> — aguarde a aprovação do master.
@@ -765,6 +791,37 @@
             </tbody>
         </table>
         </div>
+    </section>
+</div>
+
+<!-- ABA LOGS DE AUDITORIA -->
+<div id="tab-logs" class="tab-content">
+    <section class="panel">
+        <h2>&#128202; LOGS DE AUDITORIA</h2>
+        <p style="font-size:12px;color:var(--text-muted);margin:4px 0 16px">Registro de todas as ações realizadas no sistema.</p>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+            <input id="logSearch" type="text" placeholder="&#128269; Filtrar por usuário, ação ou entidade..." style="flex:1;min-width:200px;max-width:400px;padding:8px 12px;background:#1e1e30;border:1px solid #333;color:#fff;border-radius:6px;font-size:13px">
+            <button onclick="loadAuditLogs()" style="padding:8px 20px;font-size:12px">&#128260; ATUALIZAR</button>
+            <button onclick="loadAuditLogs(true)" style="padding:8px 16px;font-size:12px;background:#2a1a0a;border-color:#664400">&#128196; MAIS</button>
+        </div>
+        <div class="table-wrap">
+            <table id="auditTable">
+                <thead>
+                    <tr>
+                        <th style="width:140px">DATA/HORA</th>
+                        <th style="width:100px">USUÁRIO</th>
+                        <th style="width:120px">AÇÃO</th>
+                        <th style="width:100px">ENTIDADE</th>
+                        <th>DETALHES</th>
+                        <th style="width:110px">IP</th>
+                    </tr>
+                </thead>
+                <tbody id="auditBody">
+                    <tr><td colspan="6" style="text-align:center;color:#555">Clique em Atualizar para carregar os logs.</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="auditPager" style="margin-top:14px;text-align:center;font-size:12px;color:#666"></div>
     </section>
 </div>
 
@@ -1099,3 +1156,4 @@
 </script>
 </body>
 </html>
+

@@ -630,7 +630,9 @@ async function loadUserInfo() {
             // Admin pode configurar white-label
             const brandSec = document.getElementById('brandingSection');
             if (brandSec) { brandSec.style.display = ''; loadBrandingForm(); }
-            // Admin vê seu link de indicação
+        }
+        if (_isAdmin && !_isMaster) {
+            // Apenas tenant-admin vê link de indicação (master não tem tenantId)
             const refSec = document.getElementById('referralSection');
             if (refSec) { refSec.style.display = ''; loadReferralInfo(); }
         }

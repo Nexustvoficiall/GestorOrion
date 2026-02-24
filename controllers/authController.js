@@ -677,6 +677,11 @@ exports.registerTenant = async (req, res) => {
 /* LINK DE INDICAÇÃO — retorna o código e a URL do tenant logado */
 exports.getMyReferralInfo = async (req, res) => {
     try {
+        // Master não tem tenant — não exibe link de indicação
+        if (req.session?.user?.role === 'master') {
+            return res.json({ referralCode: null, link: null, totalIndicados: 0, indicados: [], masterOnly: true });
+        }
+
         const tenantId = req.session?.user?.tenantId;
         if (!tenantId) return res.status(401).json({ error: 'Não autenticado' });
 

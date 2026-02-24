@@ -1144,6 +1144,20 @@
     </div>
 </div>
 
+<!-- MODAL: Mensagem de Cobrança -->
+<div id="modalCobranca" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeBillingModal()">
+    <div class="modal-box" style="max-width:520px;width:calc(100% - 32px)">
+        <h3 id="billingModalTitle" style="font-size:13px;letter-spacing:2px;margin-bottom:10px">📩 Mensagem de Cobrança</h3>
+        <button class="btn-close" onclick="closeBillingModal()">&#10005;</button>
+        <p style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Edite o texto abaixo se necessário antes de copiar ou enviar.</p>
+        <textarea id="billingMsgText" style="width:100%;height:280px;background:#0d0d1a;border:1px solid #2a2a3c;color:#ccc;padding:12px;border-radius:6px;font-size:12px;line-height:1.75;resize:vertical;font-family:'Segoe UI',sans-serif"></textarea>
+        <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+            <button onclick="copyBillingText()" style="flex:1">&#128203; COPIAR TEXTO</button>
+            <button id="billingWhatsAppBtn" onclick="sendBillingWhatsApp()" style="flex:1;background:#25d366;border:1px solid #1da851;color:#000;font-weight:bold">&#128172; ENVIAR WHATSAPP</button>
+        </div>
+    </div>
+</div>
+
 <script src="dashboard.js?v=3"></script>
 <script>
     // Limpa SWs antigos e registra o novo

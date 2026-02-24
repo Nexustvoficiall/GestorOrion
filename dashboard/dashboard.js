@@ -1117,6 +1117,7 @@ function copyResetLink() {
 
 /* ===== CRIAR CLIENTE ===== */
 let _clientMap = new Map();
+let _resellerMap = new Map(); // id → { name, whatsapp, servers, type, fixedFee }
 
 async function createClient() {
     const payload = {
@@ -1476,6 +1477,7 @@ async function loadResellers() {
             }
             const planBtnLabel = r.planActive ? 'Renovar' : 'Ativar';
             planHtml += `<button class="btn-sm" style="margin-top:3px;font-size:10px" onclick="openPlanModal(${r.id}, '${safeName}', ${!!r.planActive}, '${r.planExpiresAt || ''}')">${planBtnLabel}</button>`;
+            _resellerMap.set(r.id, { name: r.name, whatsapp: r.whatsapp, servers: r.servers || [], type: r.type, fixedFee: r.fixedFee });
             table.innerHTML += `
             <tr class="${rowClass}${isAtivo ? '' : ' row-inativo'}">
                 <td>${r.name}</td>
@@ -1490,6 +1492,7 @@ async function loadResellers() {
                 <td><span class="badge ${isAtivo ? 'badge-pago' : 'badge-pendente'}">${r.status || 'ATIVO'}</span></td>
                 <td style="text-align:center">${planHtml}</td>
                 <td class="td-actions">
+                    <button class="btn-action" onclick="openBillingMsg(${r.id})" title="Mensagem de cobrança" style="background:#e67e22;border-color:#e67e22">&#128172;</button>
                     <button class="btn-action btn-edit" onclick="openEditModal(${r.id})" title="Editar">&#9998;</button>
                     <button class="btn-action ${isAtivo ? 'btn-danger' : 'btn-success'}" onclick="toggleResellerStatus(${r.id}, this)" title="${isAtivo ? 'Desativar' : 'Ativar'}">${isAtivo ? '&#10006;' : '&#10003;'}</button>
                     <button class="btn-action btn-danger" onclick="deleteReseller(${r.id}, '${safeName}')" title="Excluir">&#128465;</button>
@@ -1943,6 +1946,7 @@ async function loadMensalistas() {
                 const safeName = r.name.replace(/'/g, '');
                 const waTelR   = r.whatsapp ? r.whatsapp.replace(/\D/g, '') : '';
                 const waLinkR  = waTelR ? `<a href="https://wa.me/55${waTelR}" target="_blank" style="color:var(--accent)">${r.whatsapp}</a>` : '-';
+                _resellerMap.set(r.id, { name: r.name, whatsapp: r.whatsapp, servers: r.servers || [], type: r.type, fixedFee: r.fixedFee });
                 const typeLabel = r.type === 'MENF'
                     ? '<span class="badge" style="background:#1a6b9a;color:#fff;font-size:10px">FIXO</span>'
                     : '<span class="badge" style="background:#2d6a4f;color:#fff;font-size:10px">POR ATIVO</span>';
@@ -1958,6 +1962,7 @@ async function loadMensalistas() {
                     <td><button class="badge ${pago ? 'badge-pago' : 'badge-pendente'}" onclick="togglePayment(${r.id}, '${r.paymentStatus}', this)">${r.paymentStatus}</button></td>
                     <td><span class="badge ${isAtivo ? 'badge-pago' : 'badge-pendente'}">${r.status || 'ATIVO'}</span></td>
                     <td class="td-actions">
+                        <button class="btn-action" onclick="openBillingMsg(${r.id})" title="Mensagem de cobrança" style="background:#e67e22;border-color:#e67e22">&#128172;</button>
                         <button class="btn-action ${isAtivo ? 'btn-danger' : 'btn-success'}" onclick="toggleResellerStatus(${r.id}, this)" title="${isAtivo ? 'Desativar' : 'Ativar'}">${isAtivo ? '&#10006;' : '&#10003;'}</button>
                         <button class="btn-action btn-danger" onclick="deleteReseller(${r.id}, '${safeName}')" title="Excluir">&#128465;</button>
                     </td>
@@ -2707,16 +2712,20 @@ async function saveBranding() {
 let _referralLink = '';
 
 async function loadReferralInfo() {
+    const inp   = document.getElementById('refLinkInput');
+    const stats = document.getElementById('refStats');
     try {
-        const r = await fetch('/auth/referral-info', { credentials: 'include' });
-        if (!r.ok) return;
+        const r    = await fetch('/auth/referral-info', { credentials: 'include' });
         const data = await r.json();
+        if (!r.ok) {
+            if (inp)   inp.value = '⚠️ Erro ao carregar link: ' + (data.error || 'status ' + r.status);
+            if (stats) stats.textContent = 'Verifique se sua conta está logada corretamente.';
+            return;
+        }
         _referralLink = data.link || '';
 
-        const inp = document.getElementById('refLinkInput');
         if (inp) inp.value = _referralLink;
 
-        const stats = document.getElementById('refStats');
         if (stats) {
             stats.textContent = data.totalIndicados > 0
                 ? `🎯 ${data.totalIndicados} conta(s) criada(s) via seu link`
@@ -2748,7 +2757,12 @@ async function loadReferralInfo() {
                     <tbody>${rows}</tbody>
                 </table>`;
         }
-    } catch(_) {}
+    } catch(e) {
+        const inp2   = document.getElementById('refLinkInput');
+        const stats2 = document.getElementById('refStats');
+        if (inp2)   inp2.value = '⚠️ Erro de conexão';
+        if (stats2) stats2.textContent = String(e);
+    }
 }
 
 function copyReferralLink() {
@@ -2767,6 +2781,77 @@ function _copyFallback() {
     if (!inp) return;
     inp.select();
     try { document.execCommand('copy'); showToast('📋 Link copiado!', '#1a6fff', 3000); } catch(_) {}
+}
+
+/* ===== MENSAGEM DE COBRANÇA ===== */
+function openBillingMsg(id) {
+    const r = _resellerMap.get(id);
+    if (!r) return;
+    const servers = r.servers || [];
+    const lines = [];
+    let totalAtivos = 0;
+    let totalValor  = 0;
+
+    if (r.type === 'MENF' && r.fixedFee) {
+        totalValor = Number(r.fixedFee) || 0;
+        lines.push(`💠 Mensalidade fixa: *${fmt(totalValor)}*`);
+    } else {
+        servers.forEach(s => {
+            const ativos    = s.activeCount    || 0;
+            const preco     = s.pricePerActive || 0;
+            const subtotal  = ativos * preco;
+            totalAtivos    += ativos;
+            totalValor     += subtotal;
+            const settleStr = s.settleDate ? ` | Vence: ${new Date(s.settleDate + 'T00:00:00').toLocaleDateString('pt-BR')}` : '';
+            lines.push(`🖥 *${s.server}:*\n   ${ativos} ativos × ${fmt(preco)}/ativo = *${fmt(subtotal)}*${settleStr}`);
+        });
+    }
+
+    const div = '─────────────────────';
+    let msg = `📡 *Cobrança — ${r.name}*\n\nOlá! Segue o resumo dos seus ativos:\n\n${lines.join('\n\n')}\n\n${div}\n`;
+    if (totalAtivos > 0) msg += `Total de ativos: *${totalAtivos}*\n`;
+    msg += `💰 *Total a pagar: ${fmt(totalValor)}*\n${div}\n\nAguardamos o pagamento. Qualquer dúvida, estamos à disposição! 😊`;
+
+    const ta    = document.getElementById('billingMsgText');
+    const btn   = document.getElementById('billingWhatsAppBtn');
+    const title = document.getElementById('billingModalTitle');
+    const modal = document.getElementById('modalCobranca');
+
+    if (ta)    ta.value = msg;
+    if (title) title.textContent = `📩 Cobrança — ${r.name}`;
+
+    const waNum = r.whatsapp ? r.whatsapp.replace(/\D/g, '') : '';
+    if (btn) { btn.dataset.phone = waNum; btn.style.display = ''  ; }
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeBillingModal() {
+    const modal = document.getElementById('modalCobranca');
+    if (modal) modal.style.display = 'none';
+}
+
+function copyBillingText() {
+    const ta = document.getElementById('billingMsgText');
+    if (!ta) return;
+    const text = ta.value;
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text)
+            .then(()  => showToast('📋 Mensagem copiada!', '#00cc66', 3000))
+            .catch(() => { ta.select(); document.execCommand('copy'); showToast('📋 Copiado!', '#00cc66', 2000); });
+    } else {
+        ta.select();
+        try { document.execCommand('copy'); showToast('📋 Copiado!', '#00cc66', 2000); } catch(_) {}
+    }
+}
+
+function sendBillingWhatsApp() {
+    const btn   = document.getElementById('billingWhatsAppBtn');
+    const ta    = document.getElementById('billingMsgText');
+    if (!btn || !ta) return;
+    const phone = btn.dataset.phone || '';
+    const text  = encodeURIComponent(ta.value);
+    const url   = phone ? `https://wa.me/55${phone}?text=${text}` : `https://wa.me/?text=${text}`;
+    window.open(url, '_blank');
 }
 
 window.onload = async () => {

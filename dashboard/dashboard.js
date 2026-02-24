@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    GESTOR ORION — DASHBOARD CONTROLLER
    ============================================================ */
 
@@ -215,41 +215,91 @@ function showFlash(msg) {
 }
 
 function showToast(msg, color, duration) {
-    const ms  = duration || 3500;
+    const ms  = duration || 4000;
     const bg  = color || '#00cc66';
-    // Cor do texto: preto para fundos claros (amarelo/verde claro), branco para escuros
-    const bright = ['#ffaa00','#ffe000','#f0c000'].includes(bg);
-    const el  = document.createElement('div');
-    el.innerHTML = msg;
+
+    // Ícone automático baseado na cor
+    const icon = bg === '#ff4444' || bg === '#ff2222' ? '✕'
+               : bg === '#ffaa00' || bg === '#ff8800' ? '!'
+               : '✓';
+    const iconBg = bg === '#ff4444' || bg === '#ff2222' ? '#cc2222'
+                 : bg === '#ffaa00' || bg === '#ff8800' ? '#cc7700'
+                 : '#009944';
+
+    // Empilhamento: conta toasts existentes
+    const existing = document.querySelectorAll('.orion-toast').length;
+    const offset = 24 + existing * 72;
+
+    const el = document.createElement('div');
+    el.className = 'orion-toast';
+    el.innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px;position:relative">
+            <div style="
+                min-width:32px;height:32px;background:${iconBg};
+                border-radius:50%;display:flex;align-items:center;justify-content:center;
+                font-size:14px;font-weight:900;color:#fff;flex-shrink:0
+            ">${icon}</div>
+            <div style="flex:1;min-width:0">
+                <div style="color:#fff;font-size:13px;font-weight:600;line-height:1.4;word-break:break-word">${msg}</div>
+            </div>
+            <div style="
+                min-width:18px;height:18px;background:rgba(255,255,255,0.12);
+                border-radius:50%;display:flex;align-items:center;justify-content:center;
+                font-size:10px;color:#aaa;cursor:pointer;flex-shrink:0;margin-left:4px
+            " onclick="this.closest('.orion-toast').remove();updateToastPositions()">✕</div>
+        </div>
+        <div style="
+            position:absolute;bottom:0;left:0;height:3px;background:${bg};opacity:0.7;
+            border-radius:0 0 6px 6px;width:100%;
+            animation:toastProgress ${ms}ms linear forwards
+        "></div>
+    `;
     Object.assign(el.style, {
         position:     'fixed',
-        bottom:       '24px',
-        right:        '24px',
-        zIndex:       '99999',
-        background:   bg,
-        color:        bright ? '#000' : '#fff',
-        border:       '1px solid ' + bg,
-        padding:      '12px 20px',
+        right:        '20px',
+        bottom:       offset + 'px',
+        zIndex:       '999999',
+        background:   '#1c1c1c',
+        border:       '1px solid #2e2e2e',
+        borderLeft:   '4px solid ' + bg,
+        padding:      '12px 14px',
         fontFamily:   'Rajdhani,"Segoe UI",sans-serif',
-        fontSize:     '13px',
-        fontWeight:   '600',
-        letterSpacing:'0.5px',
-        borderRadius: '4px',
-        boxShadow:    '0 4px 18px rgba(0,0,0,0.55)',
-        maxWidth:     '380px',
-        lineHeight:   '1.4',
+        borderRadius: '6px',
+        boxShadow:    '0 8px 32px rgba(0,0,0,0.7)',
+        minWidth:     '280px',
+        maxWidth:     '360px',
         cursor:       'pointer',
-        transition:   'opacity 0.3s',
-        opacity:      '0'
+        transform:    'translateX(120%)',
+        transition:   'transform 0.3s cubic-bezier(0.34,1.56,0.64,1), bottom 0.25s ease',
+        overflow:     'hidden'
     });
+
+    // Injeta keyframe uma vez
+    if (!document.getElementById('orionToastStyle')) {
+        const s = document.createElement('style');
+        s.id = 'orionToastStyle';
+        s.textContent = `@keyframes toastProgress{from{width:100%}to{width:0%}}`;
+        document.head.appendChild(s);
+    }
+
     document.body.appendChild(el);
-    // Anima entrada
-    requestAnimationFrame(() => { el.style.opacity = '1'; });
-    el.onclick = () => el.remove();
+    el.onclick = (e) => { if (!e.target.closest('[onclick]')) { el.remove(); updateToastPositions(); } };
+
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => { el.style.transform = 'translateX(0)'; });
+    });
+
     setTimeout(() => {
-        el.style.opacity = '0';
-        setTimeout(() => el.remove(), 350);
+        el.style.transform = 'translateX(120%)';
+        el.style.opacity   = '0';
+        el.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+        setTimeout(() => { el.remove(); updateToastPositions(); }, 350);
     }, ms);
+}
+
+function updateToastPositions() {
+    const toasts = document.querySelectorAll('.orion-toast');
+    toasts.forEach((t, i) => { t.style.bottom = (24 + i * 72) + 'px'; });
 }
 
 /* ===== ABAS ===== */
@@ -784,7 +834,7 @@ async function saveEditUser() {
     const expiry   = document.getElementById('eu_expiry').value;
     const password = document.getElementById('eu_password').value;
     const adesaoPagaCb = document.getElementById('eu_adesaoPaga');
-    if (!username) { showToast('Informe o nome de usu\u00e1rio', '#ff4444'); return; }
+    if (!username) { showToast('Nome de usu\u00e1rio \u00e9 obrigat\u00f3rio', '#ff4444'); return; }
     const body = { username, role, panelExpiry: expiry || null };
     if (password) body.password = password;
     if (_isMaster && adesaoPagaCb) body.adesaoPaga = adesaoPagaCb.checked;
@@ -795,12 +845,12 @@ async function saveEditUser() {
             body: JSON.stringify(body)
         });
         const data = await res.json();
-        if (!res.ok) { showToast(data.error || 'Erro ao salvar', '#ff4444'); return; }
-        showToast('\u2705 Usu\u00e1rio atualizado!', '#00cc66');
+        if (!res.ok) { showToast(data.error || 'N\u00e3o foi poss\u00edvel salvar as altera\u00e7\u00f5es', '#ff4444'); return; }
+        showToast('Usu\u00e1rio atualizado com sucesso', '#00cc66');
         closeEditUserModal();
         loadUsers();
         if (_isMaster) { loadAdminUsers(); loadMasterFinancial(); }
-    } catch (e) { showToast('Erro de conex\u00e3o', '#ff4444'); }
+    } catch (e) { showToast('Falha na conex\u00e3o. Verifique sua internet.', '#ff4444'); }
 }
 
 
@@ -826,7 +876,7 @@ async function savePayment() {
     const month  = document.getElementById('ap_month').value;
     const amount = document.getElementById('ap_amount').value;
     const note   = document.getElementById('ap_note').value;
-    if (!month || !amount) { showToast('Informe m\u00eas e valor', '#ff4444'); return; }
+    if (!month || !amount) { showToast('Preencha o m\u00eas e o valor do pagamento', '#ff4444'); return; }
     try {
         const res = await fetch('/auth/users/' + userId + '/payments', {
             method: 'POST', credentials: 'include',
@@ -834,12 +884,12 @@ async function savePayment() {
             body: JSON.stringify({ month, amount, note })
         });
         const data = await res.json();
-        if (!res.ok) { showToast(data.error || 'Erro', '#ff4444'); return; }
-        showToast('\u2705 Pagamento registrado!', '#00cc66');
+        if (!res.ok) { showToast(data.error || 'N\u00e3o foi poss\u00edvel registrar o pagamento', '#ff4444'); return; }
+        showToast('Pagamento registrado com sucesso', '#00cc66');
         closeAddPaymentModal();
         loadAdminUsers();
         loadMasterFinancial();
-    } catch (e) { showToast('Erro de conex\u00e3o', '#ff4444'); }
+    } catch (e) { showToast('Falha na conex\u00e3o. Verifique sua internet.', '#ff4444'); }
 }
 
 async function openPayHistory(id, username) {
@@ -882,12 +932,12 @@ async function deletePayment(userId, paymentId) {
         const res = await fetch('/auth/users/' + userId + '/payments/' + paymentId, {
             method: 'DELETE', credentials: 'include'
         });
-        if (!res.ok) { showToast('Erro ao excluir', '#ff4444'); return; }
-        showToast('Pagamento exclu\u00eddo', '#ffaa00');
+        if (!res.ok) { showToast('Não foi possível excluir este pagamento', '#ff4444'); return; }
+        showToast('Pagamento removido com sucesso', '#ffaa00');
         const username = document.getElementById('ph_username').textContent;
         openPayHistory(userId, username);
         loadAdminUsers();
-    } catch(e) { showToast('Erro', '#ff4444'); }
+    } catch(e) { showToast('Falha ao processar. Tente novamente.', '#ff4444'); }
 }
 
 
@@ -1687,14 +1737,14 @@ async function saveExtras() {
         if (res.ok) {
             _cachedExtras = extras;  // atualiza cache imediatamente
             calcExtrasTotal();
-            showToast('Gastos extras salvos!', '#00cc66');
+            showToast('Gastos extras salvos com sucesso', '#00cc66');
             // Recarrega financeiro se estiver na aba
             if (document.getElementById('tab-financeiro')?.classList.contains('active')) loadFinanceiro();
             if (document.getElementById('tab-extras')?.classList.contains('active')) calcExtrasTotal();
         } else {
-            showToast('Erro ao salvar', '#ff4444');
+            showToast('Não foi possível salvar os gastos extras', '#ff4444');
         }
-    } catch (e) { showToast('Erro de conexão', '#ff4444'); }
+    } catch (e) { showToast('Falha na conexão. Tente novamente.', '#ff4444'); }
 }
 
 async function loadMensalistas() {
@@ -2168,7 +2218,7 @@ async function savePlanPrices(type = 'personal') {
     const prefix = type === 'admin' ? 'ppa_' : 'pp_';
     const val1m = Number(document.getElementById(prefix + '1m')?.value);
     if (val1m < 20) {
-        showToast('O plano mensal deve ser no mínimo R$ 20,00', '#ff4444');
+        showToast('O valor do plano mensal deve ser no mínimo R$ 20,00', '#ff4444');
         return;
     }
     const prices = { type };
@@ -2183,9 +2233,9 @@ async function savePlanPrices(type = 'personal') {
             body: JSON.stringify(prices)
         });
         const data = await res.json();
-        if (res.ok) showToast('✅ Preços salvos!', '#00cc66');
-        else showToast(data.error || 'Erro ao salvar preços', '#ff4444');
-    } catch (e) { showToast('Erro de conexão', '#ff4444'); }
+        if (res.ok) showToast('Tabela de preços atualizada', '#00cc66');
+        else showToast(data.error || 'Não foi possível salvar os preços', '#ff4444');
+    } catch (e) { showToast('Falha na conexão. Tente novamente.', '#ff4444'); }
 }
 
 async function loadRenewalRequests() {
@@ -2231,22 +2281,21 @@ async function approveRenewal(id, username, planLabel) {
     try {
         const res  = await fetch(`/renewal/${id}/approve`, { method: 'POST', credentials: 'include' });
         const data = await res.json();
-        if (!res.ok) { showToast(data.error || 'Erro ao aprovar', '#ff4444'); return; }
+        if (!res.ok) { showToast(data.error || 'Não foi possível aprovar a renovação', '#ff4444'); return; }
         const newExpFmt = data.newExpiry ? new Date(data.newExpiry + 'T00:00:00').toLocaleDateString('pt-BR') : '—';
-        showToast(`✅ ${data.username} renovado por ${data.planLabel}. Novo vencimento: ${newExpFmt}`, '#00cc66');
+        showToast(`Renovação de <strong>${data.username}</strong> aprovada — ${data.planLabel} &nbsp;|&nbsp; Vence em <strong>${newExpFmt}</strong>`, '#00cc66', 5000);
         loadRenewalRequests();
-    } catch (e) { showToast('Erro de conexão', '#ff4444'); }
+    } catch (e) { showToast('Falha na conexão. Tente novamente.', '#ff4444'); }
 }
-
 
 async function rejectRenewal(id, username) {
     if (!confirm(`Rejeitar solicitação de "${username}"?`)) return;
     try {
         const res  = await fetch(`/renewal/${id}/reject`, { method: 'POST', credentials: 'include' });
         const data = await res.json();
-        if (res.ok) { showToast(`Solicitação de ${username} rejeitada.`, '#ffaa00'); loadRenewalRequests(); }
-        else showToast(data.error || 'Erro ao rejeitar', '#ff4444');
-    } catch (e) { showToast('Erro de conexão', '#ff4444'); }
+        if (res.ok) { showToast(`Solicitação de <strong>${username}</strong> foi rejeitada`, '#ffaa00'); loadRenewalRequests(); }
+        else showToast(data.error || 'Não foi possível rejeitar a solicitação', '#ff4444');
+    } catch (e) { showToast('Falha na conexão. Tente novamente.', '#ff4444'); }
 }
 
 /* ===== NOTIFICAÇÕES DE RENOVAÇÃO ===== */
@@ -2435,10 +2484,10 @@ async function saveCaixa() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ saldoCaixaJSON: JSON.stringify(_cachedSaldoCaixaJSON) })
         });
-        showToast('Caixa inicial salvo!', '#00cc66');
+        showToast('Caixa inicial salvo com sucesso', '#00cc66');
         if (document.getElementById('fin_caixa')) delete document.getElementById('fin_caixa').dataset.dirty;
         loadFinanceiro();
-    } catch (e) { showToast('Erro ao salvar caixa', '#ff4444'); }
+    } catch (e) { showToast('Não foi possível salvar o caixa. Tente novamente.', '#ff4444'); }
 }
 
 function previewSaldo() {

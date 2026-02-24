@@ -627,12 +627,11 @@ async function loadUserInfo() {
         if (_isAdmin) {
             const tab = document.getElementById('tabAdmin');
             if (tab) tab.style.display = '';
-            // Admin pode configurar white-label
-            const brandSec = document.getElementById('brandingSection');
-            if (brandSec) { brandSec.style.display = ''; loadBrandingForm(); }
         }
         if (_isAdmin && !_isMaster) {
-            // Apenas tenant-admin vê link de indicação (master não tem tenantId)
+            // Apenas tenant-admin vê branding e link de indicação (master não tem tenantId)
+            const brandSec = document.getElementById('brandingSection');
+            if (brandSec) { brandSec.style.display = ''; loadBrandingForm(); }
             const refSec = document.getElementById('referralSection');
             if (refSec) { refSec.style.display = ''; loadReferralInfo(); }
         }
@@ -2692,7 +2691,7 @@ async function saveBranding() {
             body: JSON.stringify({ brandName, primaryColor, logoUrl: logoUrl || null })
         });
         if (r.ok) {
-            if (msg) { msg.textContent = '✅ Branding salvo!'; msg.className = 'pwd-msg ok'; }
+            if (msg) { msg.textContent = '✅ Branding salvo!'; msg.className = 'pwd-msg ok'; setTimeout(() => { if(msg) msg.className = 'pwd-msg'; }, 4000); }
             showToast('✅ Branding salvo com sucesso!', '#00cc66', 3000);
             // Aplica imediatamente
             if (brandName) {
@@ -2703,10 +2702,10 @@ async function saveBranding() {
             if (primaryColor) applyBrandColor(primaryColor);
         } else {
             const d = await r.json();
-            if (msg) { msg.textContent = '❌ ' + (d.error || 'Erro ao salvar'); msg.className = 'pwd-msg err'; }
+            if (msg) { msg.textContent = '❌ ' + (d.error || 'Erro ao salvar'); msg.className = 'pwd-msg erro'; setTimeout(() => { if(msg) msg.className = 'pwd-msg'; }, 5000); }
         }
     } catch(e) {
-        if (msg) { msg.textContent = '❌ Erro de conexão'; msg.className = 'pwd-msg err'; }
+        if (msg) { msg.textContent = '❌ Erro de conexão'; msg.className = 'pwd-msg erro'; setTimeout(() => { if(msg) msg.className = 'pwd-msg'; }, 5000); }
     }
 }
 

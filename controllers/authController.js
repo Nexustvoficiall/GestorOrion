@@ -705,7 +705,7 @@ exports.getMyReferralInfo = async (req, res) => {
             order: [['createdAt', 'DESC']]
         });
 
-        const appUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+        const appUrl = process.env.APP_URL || `https://${req.get('host')}`;
         const link   = `${appUrl}/registro?ref=${tenant.referralCode}`;
 
         res.json({

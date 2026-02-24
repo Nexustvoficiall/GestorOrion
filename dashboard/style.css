@@ -1210,8 +1210,8 @@ tbody tr:hover { background: var(--bg-card); }
     display: none;
 }
 
-.pwd-msg.ok   { background: var(--badge-ok-bg); color: var(--badge-ok-color); border: 1px solid var(--badge-ok-border); }
-.pwd-msg.erro { background: var(--badge-warn-bg); color: var(--badge-warn-color); border: 1px solid var(--badge-warn-border); }
+.pwd-msg.ok   { display: block; background: var(--badge-ok-bg); color: var(--badge-ok-color); border: 1px solid var(--badge-ok-border); }
+.pwd-msg.erro { display: block; background: var(--badge-warn-bg); color: var(--badge-warn-color); border: 1px solid var(--badge-warn-border); }
 
 /* ================================================================
    RESPONSIVO — MOBILE FIRST

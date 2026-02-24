@@ -81,10 +81,10 @@ exports.update = async (req, res) => {
 
         await reseller.update({ name, type, settleDate: settleDate || null, paymentStatus, whatsapp: whatsapp || null, fixedFee: fixedFee !== undefined ? fixedFee : reseller.fixedFee });
 
-        /* atualiza servidores se enviados */
-        if (servers && servers.length) {
+        /* atualiza servidores — sempre recria do zero para garantir que removidos sejam apagados */
+        if (servers !== undefined) {
             await ResellerServer.destroy({ where: { resellerId: id, tenantId } });
-            for (const s of servers) {
+            for (const s of (servers || [])) {
                 await ResellerServer.create({
                     resellerId:    id,
                     server:        s.server,

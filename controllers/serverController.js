@@ -1,4 +1,4 @@
-const { Server } = require('../models');
+const { Server, ResellerServer } = require('../models');
 
 /* LISTAR TODOS (do tenant) */
 exports.list = async (req, res) => {
@@ -32,6 +32,12 @@ exports.create = async (req, res) => {
 exports.remove = async (req, res) => {
     try {
         const tenantId = req.tenantId;
+        // Busca nome do servidor antes de apagar para limpar ResellerServer
+        const server = await Server.findOne({ where: { id: req.params.id, tenantId } });
+        if (server) {
+            // Remove entradas de revenda que referenciam este servidor pelo nome
+            await ResellerServer.destroy({ where: { server: server.name, tenantId } });
+        }
         await Server.destroy({ where: { id: req.params.id, tenantId } });
         res.json({ success: true });
     } catch (e) {

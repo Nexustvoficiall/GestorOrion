@@ -1641,13 +1641,21 @@ async function saveExtras() {
     })).filter(e => e.name || e.value > 0);
     try {
         const res = await fetch('/auth/preferences', {
-            method: 'POST',
+            method: 'PUT',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ extraExpensesJSON: JSON.stringify(extras) })
         });
-        if (res.ok) showToast('Gastos extras salvos!', '#00cc66');
-        else showToast('Erro ao salvar', '#ff4444');
+        if (res.ok) {
+            _cachedExtras = extras;  // atualiza cache imediatamente
+            calcExtrasTotal();
+            showToast('Gastos extras salvos!', '#00cc66');
+            // Recarrega financeiro se estiver na aba
+            if (document.getElementById('tab-financeiro')?.classList.contains('active')) loadFinanceiro();
+            if (document.getElementById('tab-extras')?.classList.contains('active')) calcExtrasTotal();
+        } else {
+            showToast('Erro ao salvar', '#ff4444');
+        }
     } catch (e) { showToast('Erro de conexão', '#ff4444'); }
 }
 

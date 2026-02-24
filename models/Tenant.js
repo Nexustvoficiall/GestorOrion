@@ -49,6 +49,17 @@ const Tenant = sequelize.define('Tenant', {
     email: {
         type: DataTypes.STRING,
         allowNull: true
+    },
+    // Código único de indicação (8 chars hex maiúsculo, ex: A3F7C210)
+    referralCode: {
+        type: DataTypes.STRING(12),
+        unique: true,
+        allowNull: true   // gerado no momento do registro
+    },
+    // Código do tenant que indicou (referralCode do referrer)
+    referredBy: {
+        type: DataTypes.STRING(12),
+        allowNull: true   // null = não foi indicado por ninguém
     }
 });
 

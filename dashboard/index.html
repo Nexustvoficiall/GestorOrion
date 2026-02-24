@@ -499,6 +499,20 @@
             <button onclick="loadBrandingForm()" class="btn-secondary" style="font-size:11px">&#128260; RECARREGAR</button>
         </div>
         <div id="brandingMsg" class="pwd-msg" style="margin-top:10px"></div>
+    </section>
+
+    <!-- LINK DE INDICAÇÃO (admin only) -->
+    <section class="panel" id="referralSection" style="display:none">
+        <h2>🤝 LINK DE INDICAÇÃO</h2>
+        <p style="font-size:12px;color:var(--text-muted);margin:4px 0 16px">
+            Compartilhe seu link exclusivo. Cada pessoa que se registrar por ele aparecerá automaticamente como revenda no seu painel.
+        </p>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+            <input id="refLinkInput" readonly style="flex:1;min-width:200px;background:#0d0d1a;border:1px solid #2a2a3c;color:#6699ff;padding:10px 14px;border-radius:6px;font-size:12px;letter-spacing:1px;cursor:pointer" onclick="this.select()" value="Carregando...">
+            <button onclick="copyReferralLink()" style="white-space:nowrap">📋 COPIAR LINK</button>
+        </div>
+        <div id="refStats" style="font-size:12px;color:var(--text-muted);margin-bottom:14px"></div>
+        <div id="refList" style="overflow-x:auto"></div>
     </section>        <h2>&#128260; RENOVAÇÃO DO PAINEL</h2>
         <div id="renewalCurrentStatus" style="margin-bottom:16px;padding:12px 16px;border:1px solid var(--accent3);font-size:12px;letter-spacing:1px;line-height:2.2">Carregando...</div>
         <div id="renewalPendingMsg" style="display:none;margin-bottom:14px;padding:10px 16px;background:#1a3a0a;border:1px solid #00aa44;border-radius:4px;color:#00cc66;font-size:12px;letter-spacing:1px">

@@ -630,6 +630,9 @@ async function loadUserInfo() {
             // Admin pode configurar white-label
             const brandSec = document.getElementById('brandingSection');
             if (brandSec) { brandSec.style.display = ''; loadBrandingForm(); }
+            // Admin vê seu link de indicação
+            const refSec = document.getElementById('referralSection');
+            if (refSec) { refSec.style.display = ''; loadReferralInfo(); }
         }
         if (_isMaster) {
             const tabU = document.getElementById('tabUsers');
@@ -2698,6 +2701,72 @@ async function saveBranding() {
     } catch(e) {
         if (msg) { msg.textContent = '❌ Erro de conexão'; msg.className = 'pwd-msg err'; }
     }
+}
+
+/* ===== LINK DE INDICAÇÃO (admin) ===== */
+let _referralLink = '';
+
+async function loadReferralInfo() {
+    try {
+        const r = await fetch('/auth/referral-info', { credentials: 'include' });
+        if (!r.ok) return;
+        const data = await r.json();
+        _referralLink = data.link || '';
+
+        const inp = document.getElementById('refLinkInput');
+        if (inp) inp.value = _referralLink;
+
+        const stats = document.getElementById('refStats');
+        if (stats) {
+            stats.textContent = data.totalIndicados > 0
+                ? `🎯 ${data.totalIndicados} conta(s) criada(s) via seu link`
+                : '📭 Nenhuma conta criada via seu link ainda.';
+        }
+
+        const listEl = document.getElementById('refList');
+        if (listEl && data.indicados && data.indicados.length > 0) {
+            const rows = data.indicados.map(t => {
+                const status = t.trial ? '🟡 TRIAL' : (t.isActive ? '🟢 ATIVO' : '🔴 INATIVO');
+                const criado = new Date(t.createdAt).toLocaleDateString('pt-BR');
+                return `<tr>
+                    <td style="padding:8px 10px">${t.name}</td>
+                    <td style="padding:8px 10px;text-align:center">${t.plan || '-'}</td>
+                    <td style="padding:8px 10px;text-align:center">${status}</td>
+                    <td style="padding:8px 10px;text-align:center;color:#666">${criado}</td>
+                </tr>`;
+            }).join('');
+            listEl.innerHTML = `
+                <table style="width:100%;border-collapse:collapse;font-size:12px">
+                    <thead>
+                        <tr style="background:#0d0d1a;color:#888;letter-spacing:1px">
+                            <th style="padding:8px 10px;text-align:left">PAINEL</th>
+                            <th style="padding:8px 10px">PLANO</th>
+                            <th style="padding:8px 10px">STATUS</th>
+                            <th style="padding:8px 10px">CRIADO EM</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>`;
+        }
+    } catch(_) {}
+}
+
+function copyReferralLink() {
+    if (!_referralLink) return;
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(_referralLink)
+            .then(() => showToast('📋 Link copiado! Compartilhe com seus clientes.', '#1a6fff', 3000))
+            .catch(() => _copyFallback());
+    } else {
+        _copyFallback();
+    }
+}
+
+function _copyFallback() {
+    const inp = document.getElementById('refLinkInput');
+    if (!inp) return;
+    inp.select();
+    try { document.execCommand('copy'); showToast('📋 Link copiado!', '#1a6fff', 3000); } catch(_) {}
 }
 
 window.onload = async () => {

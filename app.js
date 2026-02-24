@@ -383,6 +383,9 @@ sequelize.sync().then(async () => {
             await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "trialEndsAt" TIMESTAMP;`);
             await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "email" VARCHAR(255);`);
             await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "email" VARCHAR(255);`);
+            /* Indicação: referralCode e referredBy */
+            await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "referralCode" VARCHAR(12);`);
+            await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "referredBy" VARCHAR(12);`);
         } catch (_) { /* coluna já existe — ignorar */ }
     } else {
         // SQLite: sintaxe sem IF NOT EXISTS
@@ -404,6 +407,9 @@ sequelize.sync().then(async () => {
         try { await sequelize.query(`ALTER TABLE "Tenants" ADD COLUMN "trialEndsAt" DATETIME`); } catch (_) {}
         try { await sequelize.query(`ALTER TABLE "Tenants" ADD COLUMN "email" VARCHAR(255)`); } catch (_) {}
         try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "email" VARCHAR(255)`); } catch (_) {}
+        /* Indicação */
+        try { await sequelize.query(`ALTER TABLE "Tenants" ADD COLUMN "referralCode" VARCHAR(12)`); } catch (_) {}
+        try { await sequelize.query(`ALTER TABLE "Tenants" ADD COLUMN "referredBy" VARCHAR(12)`); } catch (_) {}
     }
     // Migra role 'reseller' → 'personal' (renomeio de perfil) — roda em PG e SQLite
     try { await sequelize.query(`UPDATE "Users" SET "role" = 'personal' WHERE "role" = 'reseller'`); } catch (_) {}

@@ -31,6 +31,13 @@
     .trial-badge p { font-size:13px; color:#6699ff; }
     .trial-badge strong { color:#fff; }
 
+    .ref-badge {
+      background: linear-gradient(135deg, rgba(0,200,100,.15), rgba(0,200,100,.05));
+      border-color: rgba(0,200,100,.4) !important;
+      margin-top: 0; margin-bottom: 20px;
+    }
+    .ref-badge p { color:#44cc88 !important; }
+
     label { display:block; font-size:10px; letter-spacing:1.5px; color:#888; margin-bottom:6px; margin-top:16px; }
     input[type=text], input[type=password], input[type=email] {
       width:100%; background:#1e1e30; border:1px solid #333; color:#fff;
@@ -123,6 +130,20 @@
 </div>
 
 <script>
+// Lê ?ref= da URL (link de indicação)
+const _refCode = new URLSearchParams(window.location.search).get('ref') || '';
+
+// Se veio por indicação, exibe badge e preenche campo oculto
+if (_refCode) {
+  document.addEventListener('DOMContentLoaded', () => {
+    const badge = document.createElement('div');
+    badge.className = 'trial-badge ref-badge';
+    badge.innerHTML = `<span class="icon">🤝</span><p><strong>Você foi indicado!</strong> Sua conta será vinculada ao painel do seu revendedor automaticamente.</p>`;
+    const card = document.querySelector('.card');
+    const sub  = card.querySelector('.sub');
+    sub.after(badge);
+  });
+}
 async function doRegister() {
   const tenantName = document.getElementById('tenantName').value.trim();
   const username   = document.getElementById('username').value.trim();
@@ -157,7 +178,7 @@ async function doRegister() {
     const res = await fetch('/auth/register-tenant', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tenantName, username, password, email: email || undefined })
+      body: JSON.stringify({ tenantName, username, password, email: email || undefined, refCode: _refCode || undefined })
     });
     const data = await res.json();
 

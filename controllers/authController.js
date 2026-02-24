@@ -1,7 +1,8 @@
-const { User, Client, Tenant } = require('../models');
+const { User, Client, Tenant, Reseller } = require('../models');
 const { Op, fn, col, literal } = require('sequelize');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const path = require('path');
 const { audit } = require('../middlewares/authMiddleware');
@@ -570,7 +571,7 @@ exports.forgotPassword = async (req, res) => {
 /* AUTO-CADASTRO DE TENANT (rota pública — landing page) */
 exports.registerTenant = async (req, res) => {
     try {
-        const { tenantName, username, password, email } = req.body;
+        const { tenantName, username, password, email, refCode } = req.body;
         if (!tenantName || !username || !password)
             return res.status(400).json({ error: 'Campos obrigatórios: tenantName, username, password' });
         if (password.length < 6)
@@ -592,34 +593,66 @@ exports.registerTenant = async (req, res) => {
         const trialEndsAt = new Date();
         trialEndsAt.setDate(trialEndsAt.getDate() + 7);
 
+        // Gera código de indicação único para este novo tenant
+        let newReferralCode;
+        do {
+            newReferralCode = uuidv4().replace(/-/g, '').slice(0, 8).toUpperCase();
+        } while (await Tenant.findOne({ where: { referralCode: newReferralCode } }));
+
+        // Verifica o código de quem indicou (se enviado)
+        let referrerTenant = null;
+        if (refCode) {
+            referrerTenant = await Tenant.findOne({ where: { referralCode: refCode.toUpperCase().trim() } });
+        }
+
         const tenant = await Tenant.create({
-            name:      tenantName.trim(),
+            name:         tenantName.trim(),
             slug,
-            brandName: tenantName.trim(),
+            brandName:    tenantName.trim(),
             primaryColor: '#1a6fff',
-            plan: 'BASICO',
-            isActive: true,
+            plan:         'BASICO',
+            isActive:     true,
             licenseExpiration: null,
-            trialEndsAt
+            trialEndsAt,
+            referralCode: newReferralCode,
+            referredBy:   referrerTenant ? referrerTenant.referralCode : null
         });
 
         const hash = await bcrypt.hash(password, 10);
         const user = await User.create({
             username: username.trim(),
             password: hash,
-            role: 'admin',
+            role:     'admin',
             tenantId: tenant.id,
-            email: (email || '').toLowerCase().trim() || null,
-            panelExpiry: null, // trial controla o acesso
-            firstLogin: true
+            email:    (email || '').toLowerCase().trim() || null,
+            panelExpiry: null,
+            firstLogin:  true
         });
+
+        // Se veio por indicação, cria entrada de Revenda no painel de quem indicou
+        if (referrerTenant) {
+            try {
+                await Reseller.create({
+                    tenantId:      referrerTenant.id,
+                    name:          tenantName.trim(),
+                    whatsapp:      '',
+                    type:          'MENF',
+                    status:        'ATIVO',
+                    planActive:    false,
+                    planExpiresAt: null,
+                    planValue:     0,
+                    notes:         `Indicação automática — trial iniciado ${new Date().toLocaleDateString('pt-BR')}`
+                });
+            } catch (e) { /* não bloqueia o registro se falhar */ }
+        }
 
         // Envia boas-vindas por e-mail se fornecido
         if (email && email.includes('@')) {
             emailService.sendWelcome(email, username, tenantName).catch(() => {});
         }
 
-        await audit(req, 'REGISTER_TENANT', 'Tenant', null, { tenantName, slug, username });
+        const indicadoPor = referrerTenant ? referrerTenant.name : null;
+        await audit(req, 'REGISTER_TENANT', 'Tenant', null, { tenantName, slug, username, indicadoPor });
 
         // Auto-login após registro
         req.session.user = {
@@ -633,11 +666,59 @@ exports.registerTenant = async (req, res) => {
 
         req.session.save(err => {
             if (err) return res.status(500).json({ error: 'Erro ao iniciar sessão' });
-            res.json({ ok: true, tenantId: tenant.id, slug, trialEndsAt });
+            res.json({ ok: true, tenantId: tenant.id, slug, trialEndsAt, indicadoPor });
         });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Erro ao criar conta: ' + (err.message || '') });
+    }
+};
+
+/* LINK DE INDICAÇÃO — retorna o código e a URL do tenant logado */
+exports.getMyReferralInfo = async (req, res) => {
+    try {
+        const tenantId = req.session?.user?.tenantId;
+        if (!tenantId) return res.status(401).json({ error: 'Não autenticado' });
+
+        let tenant = await Tenant.findByPk(tenantId);
+        if (!tenant) return res.status(404).json({ error: 'Tenant não encontrado' });
+
+        // Gera código se o tenant ainda não tiver um (tenants antigos)
+        if (!tenant.referralCode) {
+            let code;
+            do {
+                code = uuidv4().replace(/-/g, '').slice(0, 8).toUpperCase();
+            } while (await Tenant.findOne({ where: { referralCode: code } }));
+            await tenant.update({ referralCode: code });
+            tenant.referralCode = code;
+        }
+
+        // Busca tenants que usaram este código
+        const indicados = await Tenant.findAll({
+            where: { referredBy: tenant.referralCode },
+            attributes: ['id','name','plan','trialEndsAt','licenseExpiration','isActive','createdAt'],
+            order: [['createdAt', 'DESC']]
+        });
+
+        const appUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+        const link   = `${appUrl}/registro?ref=${tenant.referralCode}`;
+
+        res.json({
+            referralCode: tenant.referralCode,
+            link,
+            totalIndicados: indicados.length,
+            indicados: indicados.map(t => ({
+                id:      t.id,
+                name:    t.name,
+                plan:    t.plan,
+                isActive: t.isActive,
+                trial:   t.trialEndsAt && new Date(t.trialEndsAt) > new Date(),
+                createdAt: t.createdAt
+            }))
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: err.message });
     }
 };
 

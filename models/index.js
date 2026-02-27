@@ -9,6 +9,7 @@ const Server         = require('./Server');
 const AuditLog       = require('./AuditLog');
 const RenewalRequest = require('./RenewalRequest');
 const PaymentOrder   = require('./PaymentOrder');
+const ClientPayment  = require('./ClientPayment');
 
 /* RELACIONAMENTOS */
 Reseller.hasMany(ResellerServer, { foreignKey: 'resellerId', as: 'servers' });
@@ -20,6 +21,7 @@ Tenant.hasMany(Reseller,       { foreignKey: 'tenantId' });
 Tenant.hasMany(Server,         { foreignKey: 'tenantId' });
 Tenant.hasMany(AuditLog,       { foreignKey: 'tenantId' });
 Tenant.hasMany(PaymentOrder,   { foreignKey: 'tenantId' });
+Tenant.hasMany(ClientPayment,  { foreignKey: 'tenantId' });
 
 module.exports = {
     sequelize,
@@ -31,5 +33,6 @@ module.exports = {
     Server,
     AuditLog,
     RenewalRequest,
-    PaymentOrder
+    PaymentOrder,
+    ClientPayment
 };

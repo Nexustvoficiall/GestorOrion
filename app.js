@@ -195,6 +195,7 @@ app.use('/master',  require('./routes/masterRoutes'));
 /* Rotas que requerem tenant isolado */
 app.use('/audit',           requireAuth, require('./routes/auditRoutes'));
 app.use('/clients',         requireAuth, enforceTenant, require('./routes/clientRoutes'));
+app.use('/client-payments', requireAuth, enforceTenant, require('./routes/clientPaymentRoutes'));
 app.use('/resellers',       requireAuth, enforceTenant, require('./routes/resellerRoutes'));
 app.use('/report',          requireAuth, enforceTenant, require('./routes/reportRoutes'));
 app.use('/servers',         requireAuth, enforceTenant, require('./routes/serverRoutes'));
@@ -413,6 +414,25 @@ sequelize.sync().then(async () => {
                     "status" VARCHAR(20) DEFAULT 'PENDING',
                     "paymentId" VARCHAR(255),
                     "pixId" VARCHAR(255),
+                    "createdAt" TIMESTAMP DEFAULT NOW(),
+                    "updatedAt" TIMESTAMP DEFAULT NOW()
+                );
+            `);
+            /* Cobranças de clientes */
+            await sequelize.query(`
+                CREATE TABLE IF NOT EXISTS "ClientPayments" (
+                    "id" UUID PRIMARY KEY,
+                    "tenantId" UUID NOT NULL REFERENCES "Tenants"(id),
+                    "clientId" UUID NOT NULL REFERENCES "Clients"(id),
+                    "amount" FLOAT NOT NULL,
+                    "description" VARCHAR(255),
+                    "method" VARCHAR(20) NOT NULL,
+                    "status" VARCHAR(20) DEFAULT 'PENDING',
+                    "dueDate" TIMESTAMP,
+                    "pixCode" TEXT,
+                    "mercadoPagoPreferenceId" VARCHAR(255),
+                    "mercadoPagoCheckoutUrl" TEXT,
+                    "paidAt" TIMESTAMP,
                     "createdAt" TIMESTAMP DEFAULT NOW(),
                     "updatedAt" TIMESTAMP DEFAULT NOW()
                 );

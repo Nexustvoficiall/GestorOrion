@@ -149,11 +149,11 @@ if (_refCode) {
 }
 
 // Se veio com plano, destaca badge
-if (_plan && ['BASICO','PRO','ENTERPRISE'].includes(_plan)) {
+if (_plan && ['PESSOAL','REVENDA'].includes(_plan)) {
   document.addEventListener('DOMContentLoaded', () => {
     const badge = document.createElement('div');
     badge.className = 'trial-badge';
-    badge.innerHTML = `<span class="icon">💼</span><p><strong>Plano escolhido:</strong> <span style='color:#fff'>${_plan}</span></p>`;
+    badge.innerHTML = `<span class="icon">💼</span><p><strong>Modalidade escolhida:</strong> <span style='color:#fff'>${_plan}</span></p>`;
     const card = document.querySelector('.card');
     const sub  = card.querySelector('.sub');
     sub.after(badge);

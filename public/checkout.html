@@ -35,7 +35,7 @@
 <div class="wrap">
   <div class="card">
     <h1>RENOVAR PAINEL</h1>
-    <p class="sub">Escolha um plano e renove seu acesso</p>
+    <p class="sub">Escolha sua modalidade de uso</p>
   </div>
 
   <div id="tenantInfo" style="display:none">
@@ -47,36 +47,28 @@
 
   <div id="planSelection">
     <div class="card">
-      <div class="plan-card" onclick="selectPlan('BASICO', 49)">
-        <h3>BÁSICO</h3>
-        <div class="price">R$ 49<span>/mês</span></div>
+      <div class="plan-card" onclick="selectPlan('PESSOAL')">
+        <h3>USO PESSOAL</h3>
+        <div class="price">7 dias trial</div>
         <ul class="plan-features">
-          <li>Até 30 clientes</li>
-          <li>3 servidores</li>
-          <li>Financeiro básico</li>
+          <li>✓ Clientes ilimitados</li>
+          <li>✓ Servidores ilimitados</li>
+          <li>✓ Financeiro completo</li>
+          <li>✓ Exportar PDF + Excel</li>
+          <li style="color:#999">Painel para gerenciar seus próprios clientes</li>
         </ul>
         <p style="text-align:center; color:#1a6fff; cursor:pointer; margin-top:8px;">→ ESCOLHER</p>
       </div>
 
-      <div class="plan-card" onclick="selectPlan('PRO', 99)">
-        <h3>PRO ⭐ RECOMENDADO</h3>
-        <div class="price">R$ 99<span>/mês</span></div>
+      <div class="plan-card" onclick="selectPlan('REVENDA')">
+        <h3>REVENDA ⭐ RECOMENDADO</h3>
+        <div class="price">7 dias trial</div>
         <ul class="plan-features">
-          <li>Até 150 clientes</li>
-          <li>10 servidores</li>
-          <li>Financeiro completo</li>
-          <li>White-label</li>
-        </ul>
-        <p style="text-align:center; color:#1a6fff; cursor:pointer; margin-top:8px;">→ ESCOLHER</p>
-      </div>
-
-      <div class="plan-card" onclick="selectPlan('ENTERPRISE', 199)">
-        <h3>ENTERPRISE</h3>
-        <div class="price">R$ 199<span>/mês</span></div>
-        <ul class="plan-features">
-          <li>Clientes ilimitados</li>
-          <li>Servidores ilimitados</li>
-          <li>Tudo do PRO + suporte prioritário</li>
+          <li>✓ Tudo do Uso Pessoal</li>
+          <li>✓ Painel administrativo</li>
+          <li>✓ Gerenciar revendedores</li>
+          <li>✓ Configurar pagamentos (MP + PIX)</li>
+          <li>✓ Logs de auditoria detalhados</li>
         </ul>
         <p style="text-align:center; color:#1a6fff; cursor:pointer; margin-top:8px;">→ ESCOLHER</p>
       </div>
@@ -85,38 +77,17 @@
 
   <div id="paymentForm" style="display:none">
     <div class="card">
-      <h2 style="font-size:16px; margin:0 0 16px;">Plano: <span id="selectedPlan">-</span></h2>
-      <p style="font-size:28px; color:#1a6fff; margin:0 0 24px;"><strong>R$ <span id="selectedPrice">0</span>,00</strong>/mês</p>
+      <h2 style="font-size:16px; margin:0 0 16px;">Modalidade: <span id="selectedPlan">-</span></h2>
+      <p style="font-size:20px; color:#1a6fff; margin:0 0 24px;"><strong>7 dias de trial gratuito</strong></p>
 
       <div class="info">
-        Seu período será renovado por mais 30 dias (1 mês) a partir de hoje.
-      </div>
-
-      <div class="form-field">
-        <label>MÉTODO DE PAGAMENTO</label>
-        <select id="paymentMethod" onchange="selectPaymentMethod()">
-          <option value="">-- Selecione --</option>
-          <option value="pix">💳 PIX (Cópia e Cola)</option>
-          <option value="card">💳 Cartão de Crédito</option>
-        </select>
-      </div>
-
-      <div id="pixInfo" style="display:none; margin:16px 0;">
-        <div class="info">
-          Você receberá um código PIX por e-mail. Copie e cole no seu banco para pagar.
-        </div>
-      </div>
-
-      <div id="cardForm" style="display:none;">
-        <div style="padding:16px; background:#0a1a2e; border:1px solid #1a6fff; border-radius:8px; text-align:center; color:#aaa; font-size:12px;">
-          ✓ Pagamento por cartão será processado via Mercado Pago<br>
-          A integração será redirecionada para checkout seguro.
-        </div>
+        ✓ Seu período será renovado por mais 7 dias a partir de hoje<br>
+        ✓ Sem cartão de crédito necessário
       </div>
 
       <div id="msg" class="msg"></div>
 
-      <button class="btn" id="btnPay" onclick="doPay()" style="display:none;">PROCESSAR PAGAMENTO</button>
+      <button class="btn" id="btnPay" onclick="doPay()">RENOVAR TRIAL POR 7 DIAS</button>
       <button class="btn" onclick="cancelPayment()" style="background:#333;">VOLTAR</button>
     </div>
   </div>
@@ -124,7 +95,6 @@
 
 <script>
 let selectedPlan = null;
-let selectedPrice = null;
 
 // Verificar se está autenticado e carregar dados do tenant
 async function loadTenantInfo() {
@@ -146,36 +116,27 @@ async function loadTenantInfo() {
   }
 }
 
-function selectPlan(plan, price) {
+function selectPlan(plan) {
   selectedPlan = plan;
-  selectedPrice = price;
   document.getElementById('selectedPlan').textContent = plan;
-  document.getElementById('selectedPrice').textContent = price.toString();
   document.getElementById('planSelection').style.display = 'none';
   document.getElementById('paymentForm').style.display = '';
 }
 
 function cancelPayment() {
   selectedPlan = null;
-  selectedPrice = null;
   document.getElementById('planSelection').style.display = '';
   document.getElementById('paymentForm').style.display = 'none';
-  document.getElementById('paymentMethod').value = '';
-  document.getElementById('pixInfo').style.display = 'none';
-  document.getElementById('cardForm').style.display = 'none';
 }
 
 function selectPaymentMethod() {
   const method = document.getElementById('paymentMethod').value;
-  document.getElementById('pixInfo').style.display = method === 'pix' ? '' : 'none';
-  document.getElementById('cardForm').style.display = method === 'card' ? '' : 'none';
   document.getElementById('btnPay').style.display = method ? '' : 'none';
 }
 
 async function doPay() {
-  const method = document.getElementById('paymentMethod').value;
-  if (!selectedPlan || !method) {
-    showMsg('❌ Selecione um método de pagamento', false);
+  if (!selectedPlan) {
+    showMsg('❌ Selecione uma modalidade', false);
     return;
   }
 
@@ -183,33 +144,27 @@ async function doPay() {
   document.getElementById('btnPay').innerHTML = '⏳ Processando...';
 
   try {
-    const res = await fetch('/payment/create-order', {
+    const res = await fetch('/auth/reset-trial', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ plan: selectedPlan, amount: selectedPrice * 100, method })
+      body: JSON.stringify({ plan: selectedPlan })
     });
 
     const data = await res.json();
 
     if (res.ok && data.ok) {
-      if (method === 'card' && data.checkoutUrl) {
-        // Redireciona para Mercado Pago
-        window.location.href = data.checkoutUrl;
-      } else if (method === 'pix' && data.pixCopy) {
-        // Mostra código PIX
-        showMsg(`✅ Código PIX gerado! Verifique seu e-mail para copiar e pagar.`, true);
-        setTimeout(() => { window.location.href = '/dashboard'; }, 3000);
-      }
+      showMsg('✅ Trial renovado com sucesso!', true);
+      setTimeout(() => { window.location.href = '/dashboard'; }, 1500);
     } else {
-      showMsg('❌ ' + (data.error || 'Erro ao processar pagamento'), false);
+      showMsg('❌ ' + (data.error || 'Erro ao renovar trial'), false);
       document.getElementById('btnPay').disabled = false;
-      document.getElementById('btnPay').innerHTML = 'PROCESSAR PAGAMENTO';
+      document.getElementById('btnPay').innerHTML = 'RENOVAR TRIAL';
     }
   } catch(e) {
     showMsg('❌ Erro de conexão. Tente novamente.', false);
     document.getElementById('btnPay').disabled = false;
-    document.getElementById('btnPay').innerHTML = 'PROCESSAR PAGAMENTO';
+    document.getElementById('btnPay').innerHTML = 'RENOVAR TRIAL';
   }
 }
 

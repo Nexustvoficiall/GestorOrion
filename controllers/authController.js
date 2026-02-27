@@ -610,7 +610,7 @@ exports.registerTenant = async (req, res) => {
             slug,
             brandName:    tenantName.trim(),
             primaryColor: '#1a6fff',
-            plan:         ['BASICO','PRO','ENTERPRISE'].includes((plan||'').toUpperCase()) ? plan.toUpperCase() : 'BASICO',
+            plan:         ['PESSOAL','REVENDA'].includes((plan||'').toUpperCase()) ? plan.toUpperCase() : 'PESSOAL',
             isActive:     true,
             licenseExpiration: null,
             trialEndsAt,

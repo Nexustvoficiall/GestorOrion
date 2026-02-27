@@ -45,7 +45,7 @@ exports.createOrder = async (req, res) => {
             return res.status(400).json({ error: 'Campos obrigatórios: plan, amount, method' });
         }
 
-        if (!['BASICO', 'PRO', 'ENTERPRISE'].includes(plan)) {
+        if (!['PESSOAL', 'REVENDA'].includes(plan)) {
             return res.status(400).json({ error: 'Plano inválido' });
         }
 

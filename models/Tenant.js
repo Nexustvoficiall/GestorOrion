@@ -30,7 +30,7 @@ const Tenant = sequelize.define('Tenant', {
     },
     plan: {
         type: DataTypes.STRING,
-        defaultValue: 'PRO'   // 'BASICO' | 'PRO' | 'ENTERPRISE'
+        defaultValue: 'REVENDA'   // 'PESSOAL' | 'REVENDA'
     },
     licenseExpiration: {
         type: DataTypes.DATEONLY,

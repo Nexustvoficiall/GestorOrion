@@ -817,6 +817,39 @@
 <!-- ABA USU&Aacute;RIOS (somente master) -->
 <div id="tab-users" class="tab-content">
 
+    <!-- RECEITA & MRR PARA MASTER -->
+    <section class="panel">
+        <div class="panel-header">
+            <h2>&#128176; RECEITA & MRR</h2>
+            <button class="btn-sm" onclick="loadMasterRevenue()">&#8635;</button>
+        </div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:14px">
+            <div class="stat-card" style="flex:1;min-width:130px;background:#0d1a0d;border:1px solid #00aa44">
+                <div class="stat-value" id="mr_tenants" style="color:#00cc66">&mdash;</div>
+                <div class="stat-label">Tenants Ativos</div>
+            </div>
+            <div class="stat-card" style="flex:1;min-width:150px;background:#0d0d1a;border:1px solid #4499ff">
+                <div class="stat-value" id="mr_mrr" style="color:#4499ff;font-size:20px">R$ &mdash;</div>
+                <div class="stat-label">MRR Estimado</div>
+            </div>
+            <div class="stat-card" style="flex:1;min-width:150px;background:#0a1a1a;border:1px solid #00cccc">
+                <div class="stat-value" id="mr_totalPaid" style="color:#00dddd;font-size:18px">R$ &mdash;</div>
+                <div class="stat-label">Total Pago</div>
+            </div>
+            <div class="stat-card" style="flex:1;min-width:150px;background:#1a1500;border:1px solid #ffaa00">
+                <div class="stat-value" id="mr_totalPending" style="color:#ffcc00;font-size:18px">R$ &mdash;</div>
+                <div class="stat-label">Total Pendente</div>
+            </div>
+        </div>
+        <!-- Breakdown por Plano -->
+        <div style="margin-top:20px">
+            <h3 style="font-size:12px;letter-spacing:1px;color:#aaa;margin-bottom:12px">RECEITA POR PLANO</h3>
+            <div id="mr_planBreakdown" style="display:flex;gap:14px;flex-wrap:wrap">
+                <div style="text-align:center;color:#555">Carregando...</div>
+            </div>
+        </div>
+    </section>
+
     <!-- RESUMO FINANCEIRO DO MASTER -->
     <section class="panel">
         <div class="panel-header">
@@ -1051,6 +1084,39 @@
             <button class="btn-close" onclick="closeClientModal()">&#10005;</button>
         </div>
         <div id="clientDetail" class="detail-grid"></div>
+    </div>
+</div>
+
+<!-- MODAL GERAR COBRANÇA -->
+<div id="modalCharge" class="modal-overlay" style="display:none" onclick="if(event.target.id==='modalCharge')closeChargeModal()">
+    <div class="modal-box" style="max-width:480px">
+        <div class="modal-header">
+            <h2>&#128179; GERAR COBRANÇA</h2>
+            <button class="btn-close" onclick="closeChargeModal()">&#10005;</button>
+        </div>
+        <p style="font-size:12px;color:#aaa;margin:12px 0 16px">Cliente: <strong id="charge_clientName" style="color:var(--accent)"></strong></p>
+        <input type="hidden" id="charge_clientId">
+        <div class="form-row">
+            <div class="field">
+                <label>Valor (R$)</label>
+                <input id="charge_amount" type="number" placeholder="0.00" min="0.01" step="0.01">
+            </div>
+            <div class="field">
+                <label>Descrição (opcional)</label>
+                <input id="charge_description" type="text" placeholder="Ex: Renovação de plano">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="field">
+                <label>Vencimento (opcional)</label>
+                <input id="charge_dueDate" type="date">
+            </div>
+        </div>
+        <div id="charge_status" style="margin:12px 0;padding:12px;background:#1e1e30;border-radius:4px;border:1px solid #333;display:none;font-size:12px"></div>
+        <div style="display:flex;gap:10px;margin-top:18px">
+            <button id="chargeSubmitBtn" onclick="doGenerateCharge()" style="flex:1">&#10003; GERAR COBRANÇA</button>
+            <button onclick="closeChargeModal()" class="btn-secondary" style="flex:0.5">CANCELAR</button>
+        </div>
     </div>
 </div>
 

@@ -320,7 +320,7 @@ function switchTab(name) {
     }
     if (name === 'admin') { loadResellerSelect(); loadUsers(); loadLicenseInfo(); updatePlanPreview('6m'); loadRenewalRequests(); loadPlanPrices(); }
     if (name === 'servidores') loadServers();
-    if (name === 'users') { loadAdminUsers(); loadMasterFinancial(); }
+    if (name === 'users') { loadAdminUsers(); loadMasterFinancial(); loadMasterRevenue(); }
     if (name === 'mensalistas') loadMensalistas();
     if (name === 'logs') loadAuditLogs();
 }
@@ -950,6 +950,53 @@ async function loadMasterFinancial() {
     } catch (e) { console.error('loadMasterFinancial', e); }
 }
 
+// Carrega receita MRR para master
+async function loadMasterRevenue() {
+    try {
+        const res = await fetch('/master/revenue', { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        // Preenche stat cards
+        const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+        set('mr_tenants', data.tenantCount || 0);
+        set('mr_mrr', 'R$ ' + Number(data.estimatedMrr || 0).toFixed(2).replace('.', ','));
+        set('mr_totalPaid', 'R$ ' + Number(data.totalRevenuePaid || 0).toFixed(2).replace('.', ','));
+        set('mr_totalPending', 'R$ ' + Number(data.totalRevenuePending || 0).toFixed(2).replace('.', ','));
+        
+        // Carrega breakdown por plano
+        await loadMasterRevenueByPlan();
+    } catch (e) { console.error('loadMasterRevenue', e); }
+}
+
+// Carrega breakdown de receita por plano
+async function loadMasterRevenueByPlan() {
+    try {
+        const res = await fetch('/master/revenue/by-plan', { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        const breakdown = document.getElementById('mr_planBreakdown');
+        if (!breakdown) return;
+        
+        const plans = data.byPlan || [];
+        if (!plans.length) {
+            breakdown.innerHTML = '<div style="text-align:center;color:#555;width:100%">Nenhum dado disponível</div>';
+            return;
+        }
+        
+        breakdown.innerHTML = plans.map(p => `
+            <div class="stat-card" style="flex:0 1 calc(33.33% - 10px);min-width:120px;background:#1a1a2e;border:1px solid #444">
+                <div style="font-size:12px;color:#aaa;margin-bottom:4px">${p.plan}</div>
+                <div style="color:#fff;font-weight:bold;margin-bottom:8px">${p.tenantCount} tenant(s)</div>
+                <div style="font-size:14px;color:#00cc66">R$ ${Number(p.totalRevenue || 0).toFixed(2).replace('.', ',')}</div>
+                <div style="font-size:11px;color:#888;margin-top:6px">Pago: R$ ${Number(p.paidRevenue || 0).toFixed(2).replace('.', ',')}</div>
+                <div style="font-size:11px;color:#ff9800">Pendente: R$ ${Number(p.pendingRevenue || 0).toFixed(2).replace('.', ',')}</div>
+            </div>
+        `).join('');
+    } catch (e) { console.error('loadMasterRevenueByPlan', e); }
+}
+
 /* ===== EDITAR USUÁRIO ===== */
 function openEditUserModal(id, username, role, panelExpiry, adesaoPaga) {
     document.getElementById('eu_id').value = id;
@@ -1185,6 +1232,7 @@ async function loadClients() {
                 <td><span class="badge ${badgeClass}">${c.status || 'ATIVO'}</span></td>
                 <td class="td-actions">
                     <button class="btn-action btn-edit" onclick="openClientModal(${c.id})" title="Ver detalhes">&#128065;</button>
+                    <button class="btn-action" onclick="openChargeModal(${c.id}, '${(c.name||'').replace(/'/g,'')}')" title="Gerar cobrança" style="color:#ffcc00">&#128179;</button>
                     <button class="btn-action ${isAtivo ? 'btn-danger' : 'btn-success'}" onclick="toggleClientStatus(${c.id}, this)" title="${isAtivo ? 'Desativar' : 'Ativar'}">${isAtivo ? '&#10006;' : '&#10003;'}</button>
                     <button class="btn-action btn-danger" onclick="deleteClientConfirm(${c.id}, '${(c.name||'').replace(/'/g,'')}')" title="Excluir">&#128465;</button>
                 </td>
@@ -1334,6 +1382,109 @@ async function renewClient() {
         loadExpiringSoon();
         loadMetrics();
     } catch (e) { alert('\u274c Erro ao renovar cliente.'); }
+}
+
+/* ===== GERAR COBRANÇA ===== */
+function openChargeModal(clientId, clientName) {
+    document.getElementById('charge_clientId').value = clientId;
+    document.getElementById('charge_clientName').textContent = clientName;
+    document.getElementById('charge_amount').value = '';
+    document.getElementById('charge_description').value = '';
+    document.getElementById('charge_dueDate').value = '';
+    document.getElementById('charge_status').style.display = 'none';
+    document.getElementById('charge_status').innerHTML = '';
+    document.getElementById('chargeSubmitBtn').disabled = false;
+    document.getElementById('chargeSubmitBtn').textContent = '✓ GERAR COBRANÇA';
+    document.getElementById('modalCharge').style.display = 'flex';
+}
+
+function closeChargeModal() {
+    document.getElementById('modalCharge').style.display = 'none';
+}
+
+async function doGenerateCharge() {
+    const clientId = document.getElementById('charge_clientId').value;
+    const amount = document.getElementById('charge_amount').value?.trim();
+    const description = document.getElementById('charge_description').value?.trim();
+    const dueDate = document.getElementById('charge_dueDate').value;
+    
+    if (!amount || Number(amount) <= 0) {
+        showToast('Digite um valor válido maior que 0', '#ff4444');
+        return;
+    }
+    
+    const btn = document.getElementById('chargeSubmitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Processando...';
+    
+    try {
+        const res = await fetch('/client-payments/create', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                clientId: Number(clientId),
+                amount: Number(amount),
+                description: description || 'Cobrança gerada via dashboard',
+                dueDate: dueDate || null
+            })
+        });
+        const data = await res.json();
+        
+        if (!res.ok) {
+            showToast(data.error || 'Erro ao gerar cobrança', '#ff4444');
+            btn.disabled = false;
+            btn.textContent = '✓ GERAR COBRANÇA';
+            return;
+        }
+        
+        // Se for PIX, mostrar código
+        if (data.method === 'pix' && data.pixCode) {
+            const statusEl = document.getElementById('charge_status');
+            statusEl.style.display = 'block';
+            statusEl.innerHTML = `
+                <div style="text-align:center">
+                    <div style="color:#00cc66;margin-bottom:8px">✓ Cobrança vía PIX gerada com sucesso!</div>
+                    <div style="background:#0d0d1a;border:1px solid #333;border-radius:4px;padding:10px;margin:8px 0;font-family:monospace">
+                        <div style="color:#888;font-size:10px;margin-bottom:4px">Código PIX:</div>
+                        <div id="pixCodeDisplay" style="color:#00cccc;word-break:break-all;user-select:all">${data.pixCode}</div>
+                    </div>
+                    <button onclick="copyPixCode('${data.pixCode}')" style="width:100%;padding:6px;font-size:11px;background:#00cccc;color:#000;border:none;border-radius:4px;cursor:pointer;font-weight:bold">📋 Copiar Código PIX</button>
+                </div>
+            `;
+            btn.disabled = false;
+            btn.textContent = '✓ GERAR COBRANÇA';
+        }
+        // Se for MP, abrir checkout em nova aba
+        else if (data.method === 'mercadopago' && data.checkoutUrl) {
+            showToast('Abrindo Mercado Pago em nova aba...', '#4499ff');
+            window.open(data.checkoutUrl, '_blank');
+            setTimeout(() => {
+                closeChargeModal();
+                showToast('Cobrança criada com sucesso!', '#00cc66');
+            }, 1500);
+        }
+        // Fallback
+        else {
+            showToast('Cobrança gerada com sucesso!', '#00cc66');
+            closeChargeModal();
+        }
+        
+        loadClients();
+    } catch (e) {
+        console.error('doGenerateCharge error:', e);
+        showToast('Erro na conexão. Tente novamente.', '#ff4444');
+        btn.disabled = false;
+        btn.textContent = '✓ GERAR COBRANÇA';
+    }
+}
+
+function copyPixCode(code) {
+    navigator.clipboard.writeText(code).then(() => {
+        showToast('Código PIX copiado!', '#00cc66');
+    }).catch(() => {
+        alert('Erro ao copiar. Copie manualmente do campo acima.');
+    });
 }
 
 /* ===== REVENDAS — FORMULÁRIO DINÂMICO ===== */

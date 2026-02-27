@@ -123,6 +123,16 @@ app.get('/registro', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'registro.html'));
 });
 
+/* PÁGINA DE CHECKOUT (autenticado) */
+app.get('/checkout', requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'checkout.html'));
+});
+
+/* PÁGINA DE TERMOS */
+app.get('/termos', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'termos.html'));
+});
+
 /* ===== RESET DE EMERGÊNCIA (localhost ou token secreto) ===== */
 app.get('/reset-admin', async (req, res) => {
     const ip = req.ip || req.connection.remoteAddress || '';
@@ -179,6 +189,7 @@ app.get('/reset-admin', async (req, res) => {
 app.use('/auth',    require('./routes/authRoutes'));
 app.use('/owner',   require('./routes/ownerRoutes'));   // auth por rota (license-status é pública)
 app.use('/tenant',  require('./routes/tenantRoutes'));
+app.use('/payment', require('./routes/paymentRoutes'));
 app.use('/master',  require('./routes/masterRoutes'));
 
 /* Rotas que requerem tenant isolado */
@@ -386,6 +397,22 @@ sequelize.sync().then(async () => {
             /* Indicação: referralCode e referredBy */
             await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "referralCode" VARCHAR(12);`);
             await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "referredBy" VARCHAR(12);`);
+            /* Pagamentos */
+            await sequelize.query(`
+                CREATE TABLE IF NOT EXISTS "PaymentOrders" (
+                    "id" UUID PRIMARY KEY,
+                    "tenantId" UUID NOT NULL REFERENCES "Tenants"(id),
+                    "externalRef" VARCHAR(255) UNIQUE NOT NULL,
+                    "plan" VARCHAR(50) NOT NULL,
+                    "amount" INTEGER NOT NULL,
+                    "method" VARCHAR(20) DEFAULT 'card',
+                    "status" VARCHAR(20) DEFAULT 'PENDING',
+                    "paymentId" VARCHAR(255),
+                    "pixId" VARCHAR(255),
+                    "createdAt" TIMESTAMP DEFAULT NOW(),
+                    "updatedAt" TIMESTAMP DEFAULT NOW()
+                );
+            `);
         } catch (_) { /* coluna já existe — ignorar */ }
     } else {
         // SQLite: sintaxe sem IF NOT EXISTS

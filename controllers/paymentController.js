@@ -8,6 +8,30 @@ const emailService = require('../services/emailService');
 const { audit } = require('../middlewares/authMiddleware');
 
 /**
+ * POST /payment/validate-mercadopago-token
+ * Valida se o token do Mercado Pago é válido
+ */
+exports.validateMercadoPagoToken = async (req, res) => {
+    try {
+        const { token } = req.body;
+        if (!token) return res.status(400).json({ error: 'Token é obrigatório' });
+
+        // Tenta fazer uma chamada simples à API do Mercado Pago para validar
+        try {
+            await axios.get('https://api.mercadopago.com/v1/users/me', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            res.json({ ok: true, valid: true });
+        } catch (err) {
+            res.json({ ok: true, valid: false, message: 'Token inválido ou expirado' });
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Erro ao validar token' });
+    }
+};
+
+/**
  * POST /payment/create-order
  * Cria um novo pedido de pagamento (PIX ou Cartão)
  */

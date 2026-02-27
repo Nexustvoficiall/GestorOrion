@@ -127,12 +127,26 @@ exports.updateMyTenant = async (req, res) => {
         const tenant = await Tenant.findByPk(tenantId);
         if (!tenant) return res.status(404).json({ error: 'Tenant não encontrado' });
 
-        // Tenant admin só pode alterar branding — não altera plano/licença/isActive
-        const { primaryColor, logoUrl, brandName } = req.body;
-        await tenant.update({ primaryColor, logoUrl, brandName });
+        // Tenant admin pode alterar: branding, mercadoPago token, PIX
+        const { primaryColor, logoUrl, brandName, mercadoPagoAccessToken, pixKey, pixKeyName } = req.body;
+        const updates = {};
+        
+        if (primaryColor !== undefined) updates.primaryColor = primaryColor;
+        if (logoUrl !== undefined) updates.logoUrl = logoUrl;
+        if (brandName !== undefined) updates.brandName = brandName;
+        if (mercadoPagoAccessToken !== undefined) updates.mercadoPagoAccessToken = mercadoPagoAccessToken;
+        if (pixKey !== undefined) updates.pixKey = pixKey;
+        if (pixKeyName !== undefined) updates.pixKeyName = pixKeyName;
+        
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ error: 'Nenhum campo para atualizar' });
+        }
+        
+        await tenant.update(updates);
         invalidateTenantCache(tenant.id);
         res.json({ ok: true });
     } catch (err) {
+        console.error(err);
         res.status(500).json({ error: 'Erro ao atualizar tenant' });
     }
 };

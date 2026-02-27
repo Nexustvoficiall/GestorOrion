@@ -6,6 +6,9 @@ const router = require('express').Router();
 const { requireAuth } = require('../middlewares/authMiddleware');
 const ctrl = require('../controllers/paymentController');
 
+// Validar token Mercado Pago (autenticado)
+router.post('/validate-mercadopago-token', requireAuth, ctrl.validateMercadoPagoToken);
+
 // Criar ordem de pagamento (autenticado)
 router.post('/create-order', requireAuth, ctrl.createOrder);
 

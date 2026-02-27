@@ -513,6 +513,71 @@
         <div id="refList" style="overflow-x:auto"></div>
     </section>
 
+    <!-- CONFIGURAÇÃO DE PAGAMENTO/COBRANÇA (admin only) -->
+    <section class="panel" id="paymentConfigSection" style="display:none">
+        <h2>💳 CONFIGURAÇÃO DE PAGAMENTOS</h2>
+        <p style="font-size:12px;color:var(--text-muted);margin:4px 0 16px">Configure como seus clientes pagam. Escolha entre Mercado Pago automático ou PIX manual.</p>
+        
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+            <div style="background:rgba(26,111,255,.08);border:1px solid rgba(26,111,255,.3);padding:16px;border-radius:8px;cursor:pointer" onclick="switchPaymentTab('mercadopago')">
+                <h3 style="margin:0 0 8px;color:#1a6fff">💳 MERCADO PAGO</h3>
+                <p style="margin:0;font-size:11px;color:#888">Cobranças automáticas via API</p>
+            </div>
+            <div style="background:rgba(0,200,100,.08);border:1px solid rgba(0,200,100,.3);padding:16px;border-radius:8px;cursor:pointer" onclick="switchPaymentTab('pix')">
+                <h3 style="margin:0 0 8px;color:#00cc66">💰 PIX MANUAL</h3>
+                <p style="margin:0;font-size:11px;color:#888">Você envia o PIX pro cliente</p>
+            </div>
+        </div>
+
+        <!-- TAB: MERCADO PAGO -->
+        <div id="mpTab" style="display:none">
+            <div style="background:#0a0a12;border:1px solid #2a2a3c;padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 12px">📍 COMO CONFIGURAR SUA API DO MERCADO PAGO</h4>
+                <ol style="margin:0;padding-left:20px;font-size:12px;color:#aaa;line-height:2">
+                    <li>Entre em <a href="https://www.mercadopago.com.br" target="_blank" style="color:#1a6fff">mercadopago.com.br</a></li>
+                    <li>Vá em <strong>Conta</strong> → <strong>Configurações</strong> → <strong>Credenciais</strong></li>
+                    <li>Copie sua <strong>Access Token de Produção</strong> (começa com APP_)</li>
+                    <li>Cole abaixo e clique em SALVAR</li>
+                </ol>
+            </div>
+            <div class="form-row">
+                <div class="field">
+                    <label>ACCESS TOKEN DO MERCADO PAGO *</label>
+                    <input type="password" id="mp_token" placeholder="APP_..." autocomplete="off" style="font-family:monospace;font-size:11px">
+                    <p class="hint">Sua chave privada — nunca compartilhe!</p>
+                    <button style="margin-top:8px;font-size:11px" onclick="toggleMpTokenViz()">👁️ MOSTRAR/OCULTAR</button>
+                </div>
+            </div>
+            <button onclick="saveMercadoPagoConfig()" style="margin-top:16px">✅ SALVAR MERCADO PAGO</button>
+            <div id="mpMsg" class="pwd-msg" style="margin-top:10px"></div>
+        </div>
+
+        <!-- TAB: PIX MANUAL -->
+        <div id="pixTab" style="display:none">
+            <div style="background:#0a0a12;border:1px solid #2a2a3c;padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 12px">📍 COMO CONFIGURAR SEU PIX</h4>
+                <ol style="margin:0;padding-left:20px;font-size:12px;color:#aaa;line-height:2">
+                    <li>Abra seu banco e vá em <strong>PIX</strong> → <strong>MINHAS CHAVES</strong></li>
+                    <li>Copie uma das suas chaves (CPF, CNPJ, email ou aleatória)</li>
+                    <li>Cole abaixo com o nome de quem recebe (CPF ou empresa)</li>
+                    <li>Clique em SALVAR</li>
+                </ol>
+            </div>
+            <div class="form-row">
+                <div class="field">
+                    <label>SUA CHAVE PIX (CPF, CNPJ, EMAIL OU ALEATÓRIA) *</label>
+                    <input type="text" id="pix_key" placeholder="Ex: 123.456.789-00 ou seu@email.com" maxlength="255">
+                </div>
+                <div class="field">
+                    <label>NOME DO BENEFICIÁRIO (SEU NOME OU EMPRESA) *</label>
+                    <input type="text" id="pix_name" placeholder="Ex: João da Silva" maxlength="60">
+                </div>
+            </div>
+            <button onclick="savePixConfig()" style="margin-top:16px">✅ SALVAR PIX</button>
+            <div id="pixMsg" class="pwd-msg" style="margin-top:10px"></div>
+        </div>
+    </section>
+
     <!-- Renovação do Painel -->
     <section class="panel" id="renewalSection">
         <h2>&#128260; RENOVAÇÃO DO PAINEL</h2>

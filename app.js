@@ -397,6 +397,10 @@ sequelize.sync().then(async () => {
             /* Indicação: referralCode e referredBy */
             await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "referralCode" VARCHAR(12);`);
             await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "referredBy" VARCHAR(12);`);
+            /* Pagamento: API Mercado Pago e PIX */
+            await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "mercadoPagoAccessToken" TEXT;`);
+            await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "pixKey" VARCHAR(255);`);
+            await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "pixKeyName" VARCHAR(255);`);
             /* Pagamentos */
             await sequelize.query(`
                 CREATE TABLE IF NOT EXISTS "PaymentOrders" (

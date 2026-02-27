@@ -629,11 +629,13 @@ async function loadUserInfo() {
             if (tab) tab.style.display = '';
         }
         if (_isAdmin && !_isMaster) {
-            // Apenas tenant-admin vê branding e link de indicação (master não tem tenantId)
+            // Apenas tenant-admin vê branding, Link de indicação e configuração de pagamento (master não tem tenantId)
             const brandSec = document.getElementById('brandingSection');
             if (brandSec) { brandSec.style.display = ''; loadBrandingForm(); }
             const refSec = document.getElementById('referralSection');
             if (refSec) { refSec.style.display = ''; loadReferralInfo(); }
+            const paySec = document.getElementById('paymentConfigSection');
+            if (paySec) { paySec.style.display = ''; loadPaymentConfig(); }
         }
         if (_isMaster) {
             const tabU = document.getElementById('tabUsers');
@@ -2853,6 +2855,124 @@ function sendBillingWhatsApp() {
     const text  = encodeURIComponent(ta.value);
     const url   = phone ? `https://wa.me/55${phone}?text=${text}` : `https://wa.me/?text=${text}`;
     window.open(url, '_blank');
+}
+
+/* ===== CONFIGURAÇÃO DE PAGAMENTO (admin) ===== */
+
+async function loadPaymentConfig() {
+    try {
+        const r = await fetch('/tenant/me', { credentials: 'include' });
+        if (!r.ok) return;
+        const t = await r.json();
+        
+        // Preenche Mercado Pago se configurado
+        if (t.mercadoPagoAccessToken) {
+            document.getElementById('mp_token').value = '••••••••' + t.mercadoPagoAccessToken.slice(-10);
+            document.getElementById('mpMsg').textContent = '✅ Mercado Pago já está configurado';
+            document.getElementById('mpMsg').className = 'pwd-msg ok';
+        }
+        
+        // Preenche PIX se configurado
+        if (t.pixKey) {
+            document.getElementById('pix_key').value = t.pixKey;
+            document.getElementById('pix_name').value = t.pixKeyName || '';
+            document.getElementById('pixMsg').textContent = '✅ PIX já está configurado';
+            document.getElementById('pixMsg').className = 'pwd-msg ok';
+        }
+        
+        // Mostra primeira aba (Mercado Pago)
+        switchPaymentTab('mercadopago');
+    } catch(_) {}
+}
+
+function switchPaymentTab(tab) {
+    document.getElementById('mpTab').style.display = tab === 'mercadopago' ? '' : 'none';
+    document.getElementById('pixTab').style.display = tab === 'pix' ? '' : 'none';
+}
+
+function toggleMpTokenViz() {
+    const inp = document.getElementById('mp_token');
+    if (inp.type === 'password') {
+        inp.type = 'text';
+    } else {
+        inp.type = 'password';
+    }
+}
+
+async function saveMercadoPagoConfig() {
+    const token = document.getElementById('mp_token').value.trim();
+    const msg   = document.getElementById('mpMsg');
+    
+    if (!token || token.length < 10) {
+        msg.textContent = '❌ Token inválido. Copie da sua conta Mercado Pago.';
+        msg.className = 'pwd-msg erro';
+        msg.style.display = 'block';
+        return;
+    }
+    
+    try {
+        const r = await fetch('/tenant/me', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ mercadoPagoAccessToken: token })
+        });
+        
+        if (r.ok) {
+            msg.textContent = '✅ Mercado Pago salvo com sucesso!';
+            msg.className = 'pwd-msg ok';
+            msg.style.display = 'block';
+            document.getElementById('mp_token').value = '••••••••' + token.slice(-10);
+            setTimeout(() => { msg.style.display = 'none'; }, 5000);
+        } else {
+            const d = await r.json();
+            msg.textContent = '❌ ' + (d.error || 'Erro ao salvar');
+            msg.className = 'pwd-msg erro';
+            msg.style.display = 'block';
+        }
+    } catch(e) {
+        msg.textContent = '❌ Erro de conexão';
+        msg.className = 'pwd-msg erro';
+        msg.style.display = 'block';
+    }
+}
+
+async function savePixConfig() {
+    const key   = document.getElementById('pix_key').value.trim();
+    const name  = document.getElementById('pix_name').value.trim();
+    const msg   = document.getElementById('pixMsg');
+    
+    if (!key || !name) {
+        msg.textContent = '❌ Preencha a chave PIX e o nome do beneficiário.';
+        msg.className = 'pwd-msg erro';
+        msg.style.display = 'block';
+        return;
+    }
+    
+    try {
+        const r = await fetch('/tenant/me', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ pixKey: key, pixKeyName: name })
+        });
+        
+        if (r.ok) {
+            msg.textContent = '✅ PIX salvo com sucesso!';
+            msg.className = 'pwd-msg ok';
+            msg.style.display = 'block';
+            setTimeout(() => { msg.style.display = 'none'; }, 5000);
+        } else {
+            const d = await r.json();
+            msg.textContent = '❌ ' + (d.error || 'Erro ao salvar');
+            msg.className = 'pwd-msg erro';
+            msg.style.display = 'block';
+        }
+    } catch(e) {
+        msg.textContent = '❌ Erro de conexão';
+        msg.className = 'pwd-msg erro';
+        msg.style.display = 'block';
+    }
 }
 
 window.onload = async () => {

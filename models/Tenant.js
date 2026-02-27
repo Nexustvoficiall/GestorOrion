@@ -60,6 +60,21 @@ const Tenant = sequelize.define('Tenant', {
     referredBy: {
         type: DataTypes.STRING(12),
         allowNull: true   // null = não foi indicado por ninguém
+    },
+    // Integração de pagamento — Mercado Pago
+    mercadoPagoAccessToken: {
+        type: DataTypes.TEXT,
+        allowNull: true   // API key do Mercado Pago do revendedor
+    },
+    // Chave PIX do revendedor (para cobranças manuais)
+    pixKey: {
+        type: DataTypes.STRING,
+        allowNull: true   // CPF, CNPJ, email ou chave aleatória do revendedor
+    },
+    // Beneficiário do PIX (nome da chave)
+    pixKeyName: {
+        type: DataTypes.STRING,
+        allowNull: true
     }
 });
 

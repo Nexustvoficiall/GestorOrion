@@ -14,6 +14,11 @@ const app = express();
 /* Railway / nginx proxy — necessário para cookies secure e req.ip correto */
 app.set('trust proxy', 1);
 
+/* Health check endpoint — responde rapidamente para Railway */
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 /* MIDDLEWARES */
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
@@ -369,117 +374,119 @@ async function ensureMasterAdmin() {
 /* START SERVER */
 /* Apenas cria tabelas que não existem — nunca modifica estrutura existente.
    alter:true pode recriar tabelas com FK constraints causando perda de dados. */
-sequelize.sync().then(async () => {
-    console.log('✅ Banco conectado e sincronizado');
+const startServer = async () => {
+    try {
+        console.log('🔄 Sincronizando banco de dados...');
+        await sequelize.sync();
+        console.log('✅ Banco conectado e sincronizado');
 
-    /* Migração segura: adiciona colunas novas sem recriar tabelas */
-    if (process.env.DATABASE_URL) {
-        try {
-            await sequelize.query(`ALTER TABLE IF EXISTS "Clients" ADD COLUMN IF NOT EXISTS "resellerId" INTEGER;`);
-            await sequelize.query(`ALTER TABLE IF EXISTS "Resellers" ADD COLUMN IF NOT EXISTS "ownerId" INTEGER;`);
-            await sequelize.query(`ALTER TABLE IF EXISTS "Clients" ADD COLUMN IF NOT EXISTS "userId" INTEGER;`);
-            await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "createdBy" INTEGER;`);
-            await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "themeColor" VARCHAR(255) DEFAULT 'red';`);
-            await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "logoBase64" TEXT;`);
-            await sequelize.query(`ALTER TABLE IF EXISTS "Resellers" ADD COLUMN IF NOT EXISTS "fixedFee" FLOAT;`);
-            await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "monthlyExpenses" FLOAT DEFAULT 0;`);
-            await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "expensesJSON" TEXT;`);
-            await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "extraExpensesJSON" TEXT;`);
-            await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "planPricesJSON" TEXT;`);
-            await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "planPricesAdminJSON" TEXT;`);
-            await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "saldoCaixaJSON" TEXT;`);
-            await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "adesaoPaga" BOOLEAN DEFAULT false;`);
-            await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "paymentsJSON" TEXT;`);
-            await sequelize.query(`ALTER TABLE IF EXISTS "RenewalRequests" ADD COLUMN IF NOT EXISTS "notifiedUser" BOOLEAN DEFAULT false;`);
-            /* Novas colunas: trial, email, white-label */
-            await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "trialEndsAt" TIMESTAMP;`);
-            await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "email" VARCHAR(255);`);
-            await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "email" VARCHAR(255);`);
-            /* Indicação: referralCode e referredBy */
-            await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "referralCode" VARCHAR(12);`);
-            await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "referredBy" VARCHAR(12);`);
-            /* Pagamento: API Mercado Pago e PIX */
-            await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "mercadoPagoAccessToken" TEXT;`);
-            await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "pixKey" VARCHAR(255);`);
-            await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "pixKeyName" VARCHAR(255);`);
-            /* Pagamentos */
-            await sequelize.query(`
-                CREATE TABLE IF NOT EXISTS "PaymentOrders" (
-                    "id" UUID PRIMARY KEY,
-                    "tenantId" UUID NOT NULL REFERENCES "Tenants"(id),
-                    "externalRef" VARCHAR(255) UNIQUE NOT NULL,
-                    "plan" VARCHAR(50) NOT NULL,
-                    "amount" INTEGER NOT NULL,
-                    "method" VARCHAR(20) DEFAULT 'card',
-                    "status" VARCHAR(20) DEFAULT 'PENDING',
-                    "paymentId" VARCHAR(255),
-                    "pixId" VARCHAR(255),
-                    "createdAt" TIMESTAMP DEFAULT NOW(),
-                    "updatedAt" TIMESTAMP DEFAULT NOW()
-                );
-            `);
-            /* Cobranças de clientes */
-            await sequelize.query(`
-                CREATE TABLE IF NOT EXISTS "ClientPayments" (
-                    "id" UUID PRIMARY KEY,
-                    "tenantId" UUID NOT NULL REFERENCES "Tenants"(id),
-                    "clientId" UUID NOT NULL REFERENCES "Clients"(id),
-                    "amount" FLOAT NOT NULL,
-                    "description" VARCHAR(255),
-                    "method" VARCHAR(20) NOT NULL,
-                    "status" VARCHAR(20) DEFAULT 'PENDING',
-                    "dueDate" TIMESTAMP,
-                    "pixCode" TEXT,
-                    "mercadoPagoPreferenceId" VARCHAR(255),
-                    "mercadoPagoCheckoutUrl" TEXT,
-                    "paidAt" TIMESTAMP,
-                    "createdAt" TIMESTAMP DEFAULT NOW(),
-                    "updatedAt" TIMESTAMP DEFAULT NOW()
-                );
-            `);
-        } catch (_) { /* coluna já existe — ignorar */ }
-    } else {
-        // SQLite: sintaxe sem IF NOT EXISTS
-        try { await sequelize.query(`ALTER TABLE "Clients" ADD COLUMN "userId" INTEGER`); } catch (_) {}
-        try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "createdBy" INTEGER`); } catch (_) {}
-        try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "themeColor" VARCHAR(255) DEFAULT 'red'`); } catch (_) {}
-        try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "logoBase64" TEXT`); } catch (_) {}
-        try { await sequelize.query(`ALTER TABLE "Resellers" ADD COLUMN "fixedFee" FLOAT`); } catch (_) {}
-        try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "monthlyExpenses" FLOAT DEFAULT 0`); } catch (_) {}
-        try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "expensesJSON" TEXT`); } catch (_) {}
-        try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "extraExpensesJSON" TEXT`); } catch (_) {}
-        try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "planPricesJSON" TEXT`); } catch (_) {}
-        try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "planPricesAdminJSON" TEXT`); } catch (_) {}
-        try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "saldoCaixaJSON" TEXT`); } catch (_) {}
-        try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "adesaoPaga" BOOLEAN DEFAULT 0`); } catch (_) {}
-        try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "paymentsJSON" TEXT`); } catch (_) {}
-        try { await sequelize.query(`ALTER TABLE "RenewalRequests" ADD COLUMN "notifiedUser" BOOLEAN DEFAULT 0`); } catch (_) {}
-        /* Novas colunas: trial, email */
-        try { await sequelize.query(`ALTER TABLE "Tenants" ADD COLUMN "trialEndsAt" DATETIME`); } catch (_) {}
-        try { await sequelize.query(`ALTER TABLE "Tenants" ADD COLUMN "email" VARCHAR(255)`); } catch (_) {}
-        try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "email" VARCHAR(255)`); } catch (_) {}
-        /* Indicação */
-        try { await sequelize.query(`ALTER TABLE "Tenants" ADD COLUMN "referralCode" VARCHAR(12)`); } catch (_) {}
-        try { await sequelize.query(`ALTER TABLE "Tenants" ADD COLUMN "referredBy" VARCHAR(12)`); } catch (_) {}
+        /* Migração segura: adiciona colunas novas sem recriar tabelas */
+        if (process.env.DATABASE_URL) {
+            try {
+                await sequelize.query(`ALTER TABLE IF EXISTS "Clients" ADD COLUMN IF NOT EXISTS "resellerId" INTEGER;`);
+                await sequelize.query(`ALTER TABLE IF EXISTS "Resellers" ADD COLUMN IF NOT EXISTS "ownerId" INTEGER;`);
+                await sequelize.query(`ALTER TABLE IF EXISTS "Clients" ADD COLUMN IF NOT EXISTS "userId" INTEGER;`);
+                await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "createdBy" INTEGER;`);
+                await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "themeColor" VARCHAR(255) DEFAULT 'red';`);
+                await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "logoBase64" TEXT;`);
+                await sequelize.query(`ALTER TABLE IF EXISTS "Resellers" ADD COLUMN IF NOT EXISTS "fixedFee" FLOAT;`);
+                await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "monthlyExpenses" FLOAT DEFAULT 0;`);
+                await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "expensesJSON" TEXT;`);
+                await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "extraExpensesJSON" TEXT;`);
+                await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "planPricesJSON" TEXT;`);
+                await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "planPricesAdminJSON" TEXT;`);
+                await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "saldoCaixaJSON" TEXT;`);
+                await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "adesaoPaga" BOOLEAN DEFAULT false;`);
+                await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "paymentsJSON" TEXT;`);
+                await sequelize.query(`ALTER TABLE IF EXISTS "RenewalRequests" ADD COLUMN IF NOT EXISTS "notifiedUser" BOOLEAN DEFAULT false;`);
+                await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "trialEndsAt" TIMESTAMP;`);
+                await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "email" VARCHAR(255);`);
+                await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "email" VARCHAR(255);`);
+                await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "referralCode" VARCHAR(12);`);
+                await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "referredBy" VARCHAR(12);`);
+                await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "mercadoPagoAccessToken" TEXT;`);
+                await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "pixKey" VARCHAR(255);`);
+                await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "pixKeyName" VARCHAR(255);`);
+                await sequelize.query(`
+                    CREATE TABLE IF NOT EXISTS "PaymentOrders" (
+                        "id" UUID PRIMARY KEY,
+                        "tenantId" UUID NOT NULL REFERENCES "Tenants"(id),
+                        "externalRef" VARCHAR(255) UNIQUE NOT NULL,
+                        "plan" VARCHAR(50) NOT NULL,
+                        "amount" INTEGER NOT NULL,
+                        "method" VARCHAR(20) DEFAULT 'card',
+                        "status" VARCHAR(20) DEFAULT 'PENDING',
+                        "paymentId" VARCHAR(255),
+                        "pixId" VARCHAR(255),
+                        "createdAt" TIMESTAMP DEFAULT NOW(),
+                        "updatedAt" TIMESTAMP DEFAULT NOW()
+                    );
+                `);
+                await sequelize.query(`
+                    CREATE TABLE IF NOT EXISTS "ClientPayments" (
+                        "id" UUID PRIMARY KEY,
+                        "tenantId" UUID NOT NULL REFERENCES "Tenants"(id),
+                        "clientId" UUID NOT NULL REFERENCES "Clients"(id),
+                        "amount" FLOAT NOT NULL,
+                        "description" VARCHAR(255),
+                        "method" VARCHAR(20) NOT NULL,
+                        "status" VARCHAR(20) DEFAULT 'PENDING',
+                        "dueDate" TIMESTAMP,
+                        "pixCode" TEXT,
+                        "mercadoPagoPreferenceId" VARCHAR(255),
+                        "mercadoPagoCheckoutUrl" TEXT,
+                        "paidAt" TIMESTAMP,
+                        "createdAt" TIMESTAMP DEFAULT NOW(),
+                        "updatedAt" TIMESTAMP DEFAULT NOW()
+                    );
+                `);
+            } catch (_) { /* coluna já existe — ignorar */ }
+        } else {
+            // SQLite
+            try { await sequelize.query(`ALTER TABLE "Clients" ADD COLUMN "userId" INTEGER`); } catch (_) {}
+            try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "createdBy" INTEGER`); } catch (_) {}
+            try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "themeColor" VARCHAR(255) DEFAULT 'red'`); } catch (_) {}
+            try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "logoBase64" TEXT`); } catch (_) {}
+            try { await sequelize.query(`ALTER TABLE "Resellers" ADD COLUMN "fixedFee" FLOAT`); } catch (_) {}
+            try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "monthlyExpenses" FLOAT DEFAULT 0`); } catch (_) {}
+            try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "expensesJSON" TEXT`); } catch (_) {}
+            try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "extraExpensesJSON" TEXT`); } catch (_) {}
+            try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "planPricesJSON" TEXT`); } catch (_) {}
+            try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "planPricesAdminJSON" TEXT`); } catch (_) {}
+            try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "saldoCaixaJSON" TEXT`); } catch (_) {}
+            try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "adesaoPaga" BOOLEAN DEFAULT 0`); } catch (_) {}
+            try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "paymentsJSON" TEXT`); } catch (_) {}
+            try { await sequelize.query(`ALTER TABLE "RenewalRequests" ADD COLUMN "notifiedUser" BOOLEAN DEFAULT 0`); } catch (_) {}
+            try { await sequelize.query(`ALTER TABLE "Tenants" ADD COLUMN "trialEndsAt" DATETIME`); } catch (_) {}
+            try { await sequelize.query(`ALTER TABLE "Tenants" ADD COLUMN "email" VARCHAR(255)`); } catch (_) {}
+            try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "email" VARCHAR(255)`); } catch (_) {}
+            try { await sequelize.query(`ALTER TABLE "Tenants" ADD COLUMN "referralCode" VARCHAR(12)`); } catch (_) {}
+            try { await sequelize.query(`ALTER TABLE "Tenants" ADD COLUMN "referredBy" VARCHAR(12)`); } catch (_) {}
+        }
+        try { await sequelize.query(`UPDATE "Users" SET "role" = 'personal' WHERE "role" = 'reseller'`); } catch (_) {}
+        await ensureMasterAdmin();
+        const { startCronJobs } = require('./services/cronService');
+        startCronJobs();
+        console.log('✅ Sistema inicializado com sucesso');
+    } catch (err) {
+        console.error('⚠️  ERRO na inicialização:', err.message);
+        console.error(err.stack);
     }
-    // Migra role 'reseller' → 'personal' (renomeio de perfil) — roda em PG e SQLite
-    try { await sequelize.query(`UPDATE "Users" SET "role" = 'personal' WHERE "role" = 'reseller'`); } catch (_) {}
-    await ensureMasterAdmin();
-    const { startCronJobs } = require('./services/cronService');
-    startCronJobs();
-    const PORT = process.env.PORT || 3000;
-    app.listen(PORT, '0.0.0.0', () => {
-        console.log(`
+};
+
+const PORT = process.env.PORT || 3000;
+const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`
 🚀 Gestor Orion SaaS rodando na porta ${PORT}
 
 👉 http://127.0.0.1:${PORT}/login
 👉 http://127.0.0.1:${PORT}/dashboard
-        `);
-    });
-}).catch(err => {
-    console.error('ERRO FATAL AO INICIAR:', err);
-    process.exit(1);
+    `);
+    console.log('🔄 Inicializando componentes em background...');
 });
+
+// Inicia sincronização do banco em background
+startServer();
 
 /* TRATAMENTO DE ERROS */
 /* 404 */

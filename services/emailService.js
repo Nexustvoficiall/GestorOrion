@@ -135,6 +135,41 @@ async function sendExpiryWarning(to, username, daysLeft) {
 }
 
 /**
+ * Aviso de trial expirando em X dias
+ */
+async function sendTrialWarning(to, username, tenantName, daysLeft) {
+    const transporter = createTransporter();
+    if (!transporter) return;
+    try {
+        const isFinalDay = daysLeft <= 0;
+        const subj = isFinalDay ? `🚨 Seu trial terminou hoje — ${tenantName}` : `⏰ Trial vence em ${daysLeft} dia(s) — ${tenantName}`;
+        const msg = isFinalDay 
+            ? `Seu período de teste terminou <b>hoje</b>! Ative seu painel agora para não perder o acesso.`
+            : `Seu período de teste vence <b>em ${daysLeft} dia(s)</b>. Ative seu painel agora para continuar usando.`;
+        
+        await transporter.sendMail({
+            from: FROM(),
+            to,
+            subject: subj,
+            html: `<html><head><style>${STYLE}</style></head><body>
+              <div class="wrap">
+                <div class="head"><h1>GESTOR ORION</h1><p>${isFinalDay ? 'TRIAL VENCIDO' : 'AVISO DE TRIAL'}</p></div>
+                <div class="body">
+                  <p>Olá, <b>${username}</b>!</p>
+                  <p>${msg}</p>
+                  <p><a href="${BASE_URL()}/login" class="btn">${isFinalDay ? 'ATIVAR PAINEL AGORA' : 'VER PLANOS'}</a></p>
+                  <p style="font-size:12px;color:#666">Fale com o suporte se tiver dúvidas sobre planos ou preços.</p>
+                </div>
+                <div class="foot">Gestor Orion &mdash; ${new Date().getFullYear()}</div>
+              </div>
+            </body></html>`
+        });
+    } catch (err) {
+        console.error('[emailService] sendTrialWarning error:', err.message);
+    }
+}
+
+/**
  * Enviar credenciais de acesso do novo usuário
  */
 async function sendUserCredentials(to, username, password, panelUrl) {
@@ -168,5 +203,6 @@ module.exports = {
     sendWelcome,
     sendPasswordReset,
     sendExpiryWarning,
+    sendTrialWarning,
     sendUserCredentials
 };

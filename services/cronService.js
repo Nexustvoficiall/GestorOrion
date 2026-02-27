@@ -1,6 +1,7 @@
 const cron = require('node-cron');
-const { Client, Reseller, ResellerServer, AuditLog } = require('../models');
+const { Client, Reseller, ResellerServer, AuditLog, Tenant, User } = require('../models');
 const { Op } = require('sequelize');
+const emailService = require('./emailService');
 
 let _started = false;
 
@@ -143,6 +144,40 @@ function startCronJobs() {
             }
         } catch (err) {
             console.error('[CRON] Erro ao expirar planos de revenda:', err.message);
+        }
+    });
+    /* ==============================================================
+       JOB 5: Todo dia às 08:00 — alertar sobre trial expirando
+       ============================================================== */
+    cron.schedule('0 8 * * *', async () => {
+        console.log('[CRON] Verificando tenants com trial expirando...');
+        try {
+            const now = new Date();
+            const tenantsWithTrial = await Tenant.findAll({
+                where: { trialEndsAt: { [Op.not]: null } },
+                include: { model: User, where: { role: 'admin' }, required: false }
+            });
+
+            for (const tenant of tenantsWithTrial) {
+                const trialEnds = new Date(tenant.trialEndsAt);
+                const daysLeft = Math.ceil((trialEnds - now) / (1000 * 60 * 60 * 24));
+
+                // Aviso 3 dias antes (daysLeft === 3) ou no dia do vencimento (daysLeft <= 0)
+                if (daysLeft === 3 || daysLeft === 0) {
+                    const admin = tenant.Users?.[0];
+                    if (admin && admin.email) {
+                        await emailService.sendTrialWarning(
+                            admin.email,
+                            admin.username,
+                            tenant.name,
+                            daysLeft
+                        );
+                        console.log(`✉️  Trial warning sent: ${tenant.name} (${daysLeft} days left)`);
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('[CRON] Erro ao verificar trial:', err.message);
         }
     });
 }

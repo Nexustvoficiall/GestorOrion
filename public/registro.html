@@ -131,15 +131,29 @@
 </div>
 
 <script>
-// Lê ?ref= da URL (link de indicação)
-const _refCode = new URLSearchParams(window.location.search).get('ref') || '';
+// Lê ?ref= e ?plano= da URL
+const params = new URLSearchParams(window.location.search);
+const _refCode = params.get('ref') || '';
+const _plan = (params.get('plano') || '').toUpperCase();
 
-// Se veio por indicação, exibe badge e preenche campo oculto
+// Se veio por indicação, exibe badge
 if (_refCode) {
   document.addEventListener('DOMContentLoaded', () => {
     const badge = document.createElement('div');
     badge.className = 'trial-badge ref-badge';
     badge.innerHTML = `<span class="icon">🤝</span><p><strong>Você foi indicado!</strong> Sua conta será vinculada ao painel do seu revendedor automaticamente.</p>`;
+    const card = document.querySelector('.card');
+    const sub  = card.querySelector('.sub');
+    sub.after(badge);
+  });
+}
+
+// Se veio com plano, destaca badge
+if (_plan && ['BASICO','PRO','ENTERPRISE'].includes(_plan)) {
+  document.addEventListener('DOMContentLoaded', () => {
+    const badge = document.createElement('div');
+    badge.className = 'trial-badge';
+    badge.innerHTML = `<span class="icon">💼</span><p><strong>Plano escolhido:</strong> <span style='color:#fff'>${_plan}</span></p>`;
     const card = document.querySelector('.card');
     const sub  = card.querySelector('.sub');
     sub.after(badge);
@@ -179,7 +193,7 @@ async function doRegister() {
     const res = await fetch('/auth/register-tenant', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tenantName, username, password, email: email || undefined, refCode: _refCode || undefined })
+      body: JSON.stringify({ tenantName, username, password, email: email || undefined, refCode: _refCode || undefined, plan: _plan || undefined })
     });
     const data = await res.json();
 

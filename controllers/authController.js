@@ -571,7 +571,7 @@ exports.forgotPassword = async (req, res) => {
 /* AUTO-CADASTRO DE TENANT (rota pública — landing page) */
 exports.registerTenant = async (req, res) => {
     try {
-        const { tenantName, username, password, email, refCode } = req.body;
+        const { tenantName, username, password, email, refCode, plan } = req.body;
         if (!tenantName || !username || !password)
             return res.status(400).json({ error: 'Campos obrigatórios: tenantName, username, password' });
         if (password.length < 6)
@@ -610,13 +610,18 @@ exports.registerTenant = async (req, res) => {
             slug,
             brandName:    tenantName.trim(),
             primaryColor: '#1a6fff',
-            plan:         'BASICO',
+            plan:         ['BASICO','PRO','ENTERPRISE'].includes((plan||'').toUpperCase()) ? plan.toUpperCase() : 'BASICO',
             isActive:     true,
             licenseExpiration: null,
             trialEndsAt,
             referralCode: newReferralCode,
-            referredBy:   referrerTenant ? referrerTenant.referralCode : null
+            referredBy:   referrerTenant ? referrerTenant.referralCode : null,
+            email:        email || null
         });
+        // Envia email de boas-vindas se email informado
+        if (email && emailService && typeof emailService.sendWelcome === 'function') {
+            emailService.sendWelcome(email, username, tenantName);
+        }
 
         const hash = await bcrypt.hash(password, 10);
         const user = await User.create({

@@ -415,7 +415,7 @@ const startServer = async () => {
                 await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "referredBy" VARCHAR(12);`);
                 await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "mercadoPagoAccessToken" TEXT;`);
                 await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "pixKey" VARCHAR(255);`);
-                await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "pixKeyName" VARCHAR(255);`);                `);
+                await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "pixKeyName" VARCHAR(255);`);
                 await sequelize.query(`
                     CREATE TABLE IF NOT EXISTS "ClientPayments" (
                         "id" UUID PRIMARY KEY,

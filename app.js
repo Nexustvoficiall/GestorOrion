@@ -19,6 +19,26 @@ app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+/* Debug endpoint — verifica status do banco e sistema */
+app.get('/debug', async (req, res) => {
+    try {
+        const userCount = await User.count();
+        const tables = await sequelize.query(`SELECT name FROM sqlite_master WHERE type='table' UNION SELECT tablename FROM information_schema.tables WHERE table_schema = 'public'`, { raw: true });
+        res.json({
+            status: 'ok',
+            timestamp: new Date().toISOString(),
+            database: process.env.DATABASE_URL ? 'PostgreSQL' : 'SQLite',
+            userCount,
+            tables: tables ? tables.length : 0
+        });
+    } catch (err) {
+        res.status(500).json({ 
+            error: 'Debug failed',
+            message: err.message
+        });
+    }
+});
+
 /* MIDDLEWARES */
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
@@ -416,6 +436,21 @@ const startServer = async () => {
                 await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "mercadoPagoAccessToken" TEXT;`);
                 await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "pixKey" VARCHAR(255);`);
                 await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "pixKeyName" VARCHAR(255);`);
+                await sequelize.query(`
+                    CREATE TABLE IF NOT EXISTS "AuditLogs" (
+                        "id" SERIAL PRIMARY KEY,
+                        "tenantId" UUID REFERENCES "Tenants"(id) ON DELETE CASCADE,
+                        "userId" INTEGER REFERENCES "Users"(id) ON DELETE SET NULL,
+                        "userUsername" VARCHAR(255),
+                        "action" VARCHAR(255) NOT NULL,
+                        "entity" VARCHAR(255),
+                        "entityId" INTEGER,
+                        "details" TEXT,
+                        "ip" VARCHAR(45),
+                        "createdAt" TIMESTAMP DEFAULT NOW(),
+                        "updatedAt" TIMESTAMP DEFAULT NOW()
+                    );
+                `);
                 await sequelize.query(`
                     CREATE TABLE IF NOT EXISTS "ClientPayments" (
                         "id" UUID PRIMARY KEY,

@@ -24,22 +24,39 @@ function saveCredentials(username, plainPassword) {
 
 exports.login = async (req, res) => {
     try {
+        console.log('🔐 Login attempt:', { username: req.body?.username, ip: req.ip });
         const { username, password } = req.body;
 
+        if (!username || !password) {
+            console.warn('⚠️  Login: Missing username or password');
+            return res.status(400).json({ error: 'Dados incompletos' });
+        }
+
+        console.log('🔍 Buscando usuário:', username);
         const user = await User.findOne({ where: { username } });
-        if (!user) return res.status(401).json({ error: 'Usuário inválido' });
+        if (!user) {
+            console.warn('⚠️  Login: Usuário não encontrado');
+            return res.status(401).json({ error: 'Usuário inválido' });
+        }
 
+        console.log('🔑 Comparando senha...');
         const valid = await bcrypt.compare(password, user.password);
-        if (!valid) return res.status(401).json({ error: 'Senha inválida' });
+        if (!valid) {
+            console.warn('⚠️  Login: Senha inválida');
+            return res.status(401).json({ error: 'Senha inválida' });
+        }
 
+        console.log('📅 Verificando validade do painel...');
         // Bloqueia personal OU admin com licença de painel expirada
         if (['personal', 'admin'].includes(user.role) && user.panelExpiry && new Date(user.panelExpiry) < new Date()) {
+            console.warn('⚠️  Login: Painel expirado para', user.username);
             return res.status(403).json({
                 error: 'PAINEL_EXPIRADO',
                 message: 'Sua licença de acesso ao painel expirou. Renove com seu administrador.'
             });
         }
 
+        console.log('📝 Criando sessão para', user.username);
         req.session.user = {
             id:          user.id,
             username:    user.username,
@@ -47,28 +64,31 @@ exports.login = async (req, res) => {
             resellerId:  user.resellerId,
             tenantId:    user.tenantId || null,
             firstLogin:  user.firstLogin !== false,
-            panelExpiry: user.panelExpiry || null,  // inclui na sessão para exibir no painel
-            themeColor:  user.themeColor || 'red'   // tema de cor salvo pelo usuário
+            panelExpiry: user.panelExpiry || null,
+            themeColor:  user.themeColor || 'red'
         };
 
+        // Auditoria — não bloqueia login se falhar
         try {
+            console.log('📊 Registrando auditoria...');
             await audit(req, 'LOGIN', 'User', user.id, { username: user.username });
         } catch (auditErr) {
-            console.warn('⚠️  Erro ao registrar auditoria:', auditErr.message);
-            // Não bloqueia o login se auditoria falhar
+            console.warn('⚠️  Auditoria falhou:', auditErr.message);
         }
 
-        // Garante que a sessão é gravada antes de responder
+        console.log('💾 Salvando sessão...');
         req.session.save(err => {
             if (err) {
-                console.error('Erro ao salvar sessão:', err);
-                return res.status(500).json({ error: 'Erro ao salvar sessão' });
+                console.error('❌ Erro ao salvar sessão:', err.message);
+                return res.status(500).json({ error: 'Erro ao salvar sessão: ' + err.message });
             }
+            console.log('✅ Login bem-sucedido para', user.username);
             res.json({ ok: true, role: user.role });
         });
     } catch (err) {
-        console.error('⚠️  Erro no login:', err.message);
-        console.error(err.stack);
+        console.error('❌ ERRO NO LOGIN:');
+        console.error('  Mensagem:', err.message);
+        console.error('  Stack:', err.stack);
         res.status(500).json({ error: 'Erro interno: ' + err.message });
     }
 };

@@ -396,14 +396,79 @@ async function ensureMasterAdmin() {
    alter:true pode recriar tabelas com FK constraints causando perda de dados. */
 const startServer = async () => {
     try {
-        console.log('🔄 Sincronizando banco de dados...');
+        console.log('🔄 Iniciando sincronização do banco de dados...');
         
-        // PRÉ-MENSAGENS para SQLite (cria colunas faltantes ANTES de sync)
-        if (!process.env.DATABASE_URL) {
-            try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "settlementDate" DATETIME`); } catch (_) {}
-            try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "settlementPaid" BOOLEAN DEFAULT 0`); } catch (_) {}
+        // Função auxiliar para verificar se coluna existe
+        async function columnExists(tableName, columnName) {
+            try {
+                if (process.env.DATABASE_URL) {
+                    // PostgreSQL
+                    const result = await sequelize.query(
+                        `SELECT column_name FROM information_schema.columns WHERE table_name='${tableName}' AND column_name='${columnName}';`
+                    );
+                    return result[0].length > 0;
+                } else {
+                    // SQLite
+                    const result = await sequelize.query(`PRAGMA table_info("${tableName}");`);
+                    return result[0].some(col => col.name === columnName);
+                }
+            } catch (e) {
+                console.error(`❌ Erro ao verificar coluna ${columnName} em ${tableName}:`, e.message);
+                return false;
+            }
+        }
+
+        // PRÉ-MIGRAÇÕES CRÍTICAS: com retry
+        if (process.env.DATABASE_URL) {
+            console.log('🚧 Executando pré-migrações PostgreSQL (CRÍTICAS com retry)...');
+            
+            // settlementDate
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                try {
+                    await sequelize.query(`ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "settlementDate" TIMESTAMP DEFAULT NULL;`);
+                    const exists = await columnExists('Users', 'settlementDate');
+                    if (exists) {
+                        console.log('✅ settlementDate: OK');
+                        break;
+                    } else {
+                        console.warn(`⚠️  settlementDate não confirmada (tentativa ${attempt}/3), retry...`);
+                        if (attempt === 3) throw new Error('settlementDate não foi criada após 3 tentativas');
+                        await new Promise(r => setTimeout(r, 1000));
+                    }
+                } catch (e) {
+                    console.error(`❌ ERRO CRÍTICO settlementDate (tentativa ${attempt}/3):`, e.message);
+                    if (attempt === 3) throw e;
+                    await new Promise(r => setTimeout(r, 1000));
+                }
+            }
+            
+            // settlementPaid
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                try {
+                    await sequelize.query(`ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "settlementPaid" BOOLEAN DEFAULT false;`);
+                    const exists = await columnExists('Users', 'settlementPaid');
+                    if (exists) {
+                        console.log('✅ settlementPaid: OK');
+                        break;
+                    } else {
+                        console.warn(`⚠️  settlementPaid não confirmada (tentativa ${attempt}/3), retry...`);
+                        if (attempt === 3) throw new Error('settlementPaid não foi criada após 3 tentativas');
+                        await new Promise(r => setTimeout(r, 1000));
+                    }
+                } catch (e) {
+                    console.error(`❌ ERRO CRÍTICO settlementPaid (tentativa ${attempt}/3):`, e.message);
+                    if (attempt === 3) throw e;
+                    await new Promise(r => setTimeout(r, 1000));
+                }
+            }
+        } else {
+            // SQLite
+            console.log('🚧 Executando pré-migrações SQLite...');
+            try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "settlementDate" DATETIME`); } catch (_) { console.log('⚠️  settlementDate já existe'); }
+            try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "settlementPaid" BOOLEAN DEFAULT 0`); } catch (_) { console.log('⚠️  settlementPaid já existe'); }
         }
         
+        console.log('🔄 Sincronizando modelos Sequelize...');
         await sequelize.sync();
         console.log('✅ Banco conectado e sincronizado');
 
@@ -425,8 +490,7 @@ const startServer = async () => {
                 await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "saldoCaixaJSON" TEXT;`);
                 await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "adesaoPaga" BOOLEAN DEFAULT false;`);
                 await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "paymentsJSON" TEXT;`);
-                await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "settlementDate" TIMESTAMP;`);
-                await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "settlementPaid" BOOLEAN DEFAULT false;`);
+                // settlementDate e settlementPaid já foram criadas ANTES do sync — não repetir
                 await sequelize.query(`ALTER TABLE IF EXISTS "RenewalRequests" ADD COLUMN IF NOT EXISTS "notifiedUser" BOOLEAN DEFAULT false;`);
                 await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "trialEndsAt" TIMESTAMP;`);
                 await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "email" VARCHAR(255);`);

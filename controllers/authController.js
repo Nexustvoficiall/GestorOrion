@@ -51,16 +51,25 @@ exports.login = async (req, res) => {
             themeColor:  user.themeColor || 'red'   // tema de cor salvo pelo usuário
         };
 
-        await audit(req, 'LOGIN', 'User', user.id, { username: user.username });
+        try {
+            await audit(req, 'LOGIN', 'User', user.id, { username: user.username });
+        } catch (auditErr) {
+            console.warn('⚠️  Erro ao registrar auditoria:', auditErr.message);
+            // Não bloqueia o login se auditoria falhar
+        }
 
         // Garante que a sessão é gravada antes de responder
         req.session.save(err => {
-            if (err) return res.status(500).json({ error: 'Erro ao salvar sessão' });
+            if (err) {
+                console.error('Erro ao salvar sessão:', err);
+                return res.status(500).json({ error: 'Erro ao salvar sessão' });
+            }
             res.json({ ok: true, role: user.role });
         });
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Erro interno' });
+        console.error('⚠️  Erro no login:', err.message);
+        console.error(err.stack);
+        res.status(500).json({ error: 'Erro interno: ' + err.message });
     }
 };
 

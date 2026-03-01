@@ -405,6 +405,8 @@ const startServer = async () => {
                 await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "saldoCaixaJSON" TEXT;`);
                 await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "adesaoPaga" BOOLEAN DEFAULT false;`);
                 await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "paymentsJSON" TEXT;`);
+                await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "settlementDate" TIMESTAMP;`);
+                await sequelize.query(`ALTER TABLE IF EXISTS "Users" ADD COLUMN IF NOT EXISTS "settlementPaid" BOOLEAN DEFAULT false;`);
                 await sequelize.query(`ALTER TABLE IF EXISTS "RenewalRequests" ADD COLUMN IF NOT EXISTS "notifiedUser" BOOLEAN DEFAULT false;`);
                 await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "trialEndsAt" TIMESTAMP;`);
                 await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "email" VARCHAR(255);`);
@@ -413,22 +415,7 @@ const startServer = async () => {
                 await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "referredBy" VARCHAR(12);`);
                 await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "mercadoPagoAccessToken" TEXT;`);
                 await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "pixKey" VARCHAR(255);`);
-                await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "pixKeyName" VARCHAR(255);`);
-                await sequelize.query(`
-                    CREATE TABLE IF NOT EXISTS "PaymentOrders" (
-                        "id" UUID PRIMARY KEY,
-                        "tenantId" UUID NOT NULL REFERENCES "Tenants"(id),
-                        "externalRef" VARCHAR(255) UNIQUE NOT NULL,
-                        "plan" VARCHAR(50) NOT NULL,
-                        "amount" INTEGER NOT NULL,
-                        "method" VARCHAR(20) DEFAULT 'card',
-                        "status" VARCHAR(20) DEFAULT 'PENDING',
-                        "paymentId" VARCHAR(255),
-                        "pixId" VARCHAR(255),
-                        "createdAt" TIMESTAMP DEFAULT NOW(),
-                        "updatedAt" TIMESTAMP DEFAULT NOW()
-                    );
-                `);
+                await sequelize.query(`ALTER TABLE IF EXISTS "Tenants" ADD COLUMN IF NOT EXISTS "pixKeyName" VARCHAR(255);`);                `);
                 await sequelize.query(`
                     CREATE TABLE IF NOT EXISTS "ClientPayments" (
                         "id" UUID PRIMARY KEY,

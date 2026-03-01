@@ -187,9 +187,40 @@ exports.listUsers = async (req, res) => {
 
     const users = await User.findAll({
         where,
-        attributes: ['id', 'username', 'role', 'resellerId', 'firstLogin', 'panelPlan', 'panelExpiry', 'createdBy']
+        attributes: ['id', 'username', 'role', 'resellerId', 'firstLogin', 'panelPlan', 'panelExpiry', 'createdBy', 'email', 'settlementDate', 'settlementPaid']
     });
     res.json(users);
+};
+
+/* GET /users/:userId — obter um usuário específico (admin seu tenant, master qualquer um) */
+exports.getUser = async (req, res) => {
+    try {
+        const callerRole = req.session?.user?.role;
+        const callerId   = req.session?.user?.id;
+        const tenantId   = req.session?.user?.tenantId;
+        const targetUserId = parseInt(req.params.userId);
+
+        const user = await User.findByPk(targetUserId, {
+            attributes: ['id', 'username', 'role', 'resellerId', 'firstLogin', 'panelPlan', 'panelExpiry', 'createdBy', 'email', 'settlementDate', 'settlementPaid', 'tenantId']
+        });
+
+        if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+        // Validação de permissão
+        if (callerRole === 'admin') {
+            // Admin vê apenas users que ele criou
+            if (user.createdBy !== callerId && user.id !== callerId) {
+                return res.status(403).json({ error: 'Sem permissão' });
+            }
+        } else if (callerRole !== 'master') {
+            return res.status(403).json({ error: 'Sem permissão' });
+        }
+
+        res.json(user);
+    } catch (e) {
+        console.error('getUser error:', e);
+        res.status(500).json({ error: 'Erro ao buscar usuário' });
+    }
 };
 
 /* LISTAR ADMINS COM CONTAGEM DE PERSONALS E CLIENTES (somente master) */

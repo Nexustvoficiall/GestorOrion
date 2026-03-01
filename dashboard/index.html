@@ -800,6 +800,42 @@
     <!-- Fila de Renovações Pendentes -->
     <section class="panel">
         <div class="panel-header">
+            <h2>💳 COBRANÇAS PESSOAIS</h2>
+            <button class="btn-sm" onclick="loadPersonalCharges()">&#8635;</button>
+        </div>
+        <p class="panel-desc">Gere cobranças com data de vencimento para seus usuários Personal. A cobrança vencida bloqueia o painel.</p>
+        <div style="margin-bottom:16px">
+            <div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:12px;align-items:flex-end">
+                <div style="display:flex;flex-direction:column">
+                    <label style="font-size:12px;color:#aaa;margin-bottom:6px">SELECIONE USUÁRIO</label>
+                    <select id="personalChargeUser" style="padding:8px;background:#1a1a2e;border:1px solid #2a2a3c;color:#fff;border-radius:4px">
+                        <option value="">Carregando...</option>
+                    </select>
+                </div>
+                <div style="display:flex;flex-direction:column">
+                    <label style="font-size:12px;color:#aaa;margin-bottom:6px">DATA DE VENCIMENTO</label>
+                    <input type="date" id="personalChargeDate" style="padding:8px;background:#1a1a2e;border:1px solid #2a2a3c;color:#fff;border-radius:4px">
+                </div>
+                <div style="display:flex;flex-direction:column">
+                    <label style="font-size:12px;color:#aaa;margin-bottom:6px">OBSERVAÇÃO (OPT.)</label>
+                    <input type="text" id="personalChargeNote" placeholder="ex: Cobrança de maio" style="padding:8px;background:#1a1a2e;border:1px solid #2a2a3c;color:#999;border-radius:4px;width:200px">
+                </div>
+                <button onclick="createPersonalCharge()" style="background:#1a6fff;border:1px solid #1a6fff;color:#fff;padding:8px 16px;border-radius:4px;cursor:pointer">➕ COBRAR</button>
+            </div>
+        </div>
+        <div class="table-wrap">
+        <table>
+            <thead><tr>
+                <th>USUÁRIO</th><th>DATA VENCIMENTO</th><th>VALOR</th><th>OBSERVAÇÃO</th><th>STATUS</th><th>AÇÕES</th>
+            </tr></thead>
+            <tbody id="personalChargesList"><tr><td colspan="6" style="text-align:center;color:#555">Clique em &#8635; para carregar</td></tr></tbody>
+        </table>
+        </div>
+    </section>
+
+    <!-- Fila de Renovações Pendentes -->
+    <section class="panel">
+        <div class="panel-header">
             <h2>&#128260; SOLICITAÇÕES DE RENOVAÇÃO</h2>
             <button class="btn-sm" onclick="loadRenewalRequests()">&#8635;</button>
         </div>

@@ -97,6 +97,16 @@ const User = sequelize.define('User', {
     email: {
         type: DataTypes.STRING,
         allowNull: true
+    },
+    // PESSOAL: data de vencimento/acerto do pagamento
+    settlementDate: {
+        type: DataTypes.DATE,
+        allowNull: true // null = sem data de vencimento (master/admin)
+    },
+    // PESSOAL: marca se o pagamento foi realizado
+    settlementPaid: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
     }
 });
 

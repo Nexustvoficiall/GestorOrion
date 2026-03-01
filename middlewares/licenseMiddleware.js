@@ -59,12 +59,24 @@ async function checkLicense(req, res, next) {
 
         // Verifica validade do painel do personal ou admin
         if (['personal', 'admin'].includes(req.session?.user?.role) && req.session?.user?.id) {
-            const usr = await User.findByPk(req.session.user.id, { attributes: ['panelExpiry'] });
+            const usr = await User.findByPk(req.session.user.id, { attributes: ['panelExpiry', 'role', 'settlementDate', 'settlementPaid'] });
             if (usr && usr.panelExpiry && new Date(usr.panelExpiry) < new Date()) {
                 return res.status(403).json({
                     error: 'PAINEL_EXPIRADO',
                     message: 'Sua licen\u00e7a de acesso ao painel expirou. Renove com seu administrador.'
                 });
+            }
+
+            // PESSOAL: bloqueia se settlementDate expirada e não pago
+            if (usr && usr.role === 'personal' && usr.settlementDate && !usr.settlementPaid) {
+                const settlementDate = new Date(usr.settlementDate);
+                if (settlementDate < now) {
+                    return res.status(403).json({
+                        error: 'PAGAMENTO_VENCIDO',
+                        message: `Pagamento vencido em ${settlementDate.toLocaleDateString('pt-BR')}. Entre em contato com seu administrador.`,
+                        settlementDate: usr.settlementDate
+                    });
+                }
             }
         }
 
@@ -95,8 +107,16 @@ async function checkLicensePage(req, res, next) {
         // Verifica validade do painel do personal ou admin
         let panelExpired = false;
         if (!expired && ['personal', 'admin'].includes(req.session?.user?.role) && req.session?.user?.id) {
-            const usr = await User.findByPk(req.session.user.id, { attributes: ['panelExpiry'] });
+            const usr = await User.findByPk(req.session.user.id, { attributes: ['panelExpiry', 'role', 'settlementDate', 'settlementPaid'] });
             panelExpired = !!(usr && usr.panelExpiry && new Date(usr.panelExpiry) < new Date());
+            
+            // PESSOAL: bloqueia se settlementDate expirada e não pago
+            if (!panelExpired && usr && usr.role === 'personal' && usr.settlementDate && !usr.settlementPaid) {
+                const settlementDate = new Date(usr.settlementDate);
+                if (settlementDate < now) {
+                    panelExpired = true; // marca como expirado para redirecionar
+                }
+            }
         }
 
         if (expired || panelExpired) {

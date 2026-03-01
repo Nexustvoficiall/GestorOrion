@@ -318,7 +318,7 @@ function switchTab(name) {
         const pb = document.getElementById('perfilBadge');
         if (pb) pb.style.display = 'none';
     }
-    if (name === 'admin') { loadResellerSelect(); loadUsers(); loadLicenseInfo(); updatePlanPreview('6m'); loadRenewalRequests(); loadPlanPrices(); }
+    if (name === 'admin') { loadResellerSelect(); loadUsers(); loadLicenseInfo(); updatePlanPreview('6m'); loadRenewalRequests(); loadPlanPrices(); loadPersonalCharges(); }
     if (name === 'servidores') loadServers();
     if (name === 'users') { loadAdminUsers(); loadMasterFinancial(); loadMasterRevenue(); }
     if (name === 'mensalistas') loadMensalistas();
@@ -3144,4 +3144,110 @@ window.onload = async () => {
     loadMyRenewal(); // carrega status de renovação na aba perfil
 };
 
+/* ===== COBRANÇAS PESSOAIS ===== */
+async function loadPersonalUsers() {
+    try {
+        const res = await fetch('/users', { credentials: 'include' });
+        if (res.ok) {
+            const users = await res.json();
+            const personalUsers = users.filter(u => u.role === 'personal');
+            const sel = document.getElementById('personalChargeUser');
+            if (sel) {
+                sel.innerHTML = '<option value="">— Selecione um personal —</option>' + personalUsers.map(u => 
+                    `<option value="${u.id}">${u.username} (${u.email || 'sem email'})</option>`
+                ).join('');
+            }
+        }
+    } catch (e) { console.error('erro ao carregar users:', e); }
+}
 
+async function loadPersonalCharges() {
+    const tb = document.getElementById('personalChargesList');
+    if (!tb) return;
+    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#555">Carregando...</td></tr>';
+    try {
+        const res = await fetch('/renewal/all', { credentials: 'include' });
+        if (!res.ok) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#f44">Sem permissão</td></tr>'; return; }
+        const allRequests = await res.json();
+        
+        // Filtra apenas cobranças de personals (status = pending com role = personal)
+        const charges = [];
+        for (const req of allRequests) {
+            try {
+                // Busca o user para validar se é personal
+                const userRes = await fetch(`/users/${req.userId}`, { credentials: 'include' });
+                if (userRes.ok) {
+                    const user = await userRes.json();
+                    if (user.role === 'personal') {
+                        charges.push({ ...req, userRole: user.role, userSettlementDate: user.settlementDate, settlementPaid: user.settlementPaid });
+                    }
+                }
+            } catch (e) {}
+        }
+
+        if (!charges.length) {
+            tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#555">Nenhuma cobrança pendente 🎉</td></tr>';
+            loadPersonalUsers(); // carrega dropdown mesmo sem cobranças
+            return;
+        }
+
+        tb.innerHTML = charges.map(r => {
+            const settled = r.userSettlementDate ? new Date(r.userSettlementDate).toLocaleDateString('pt-BR') : '—';
+            const status = r.settlementPaid ? '✅ PAGO' : (new Date(r.userSettlementDate) < new Date() ? '⚠ VENCIDO' : '⏳ PENDENTE');
+            const statusColor = r.settlementPaid ? '#00cc66' : (new Date(r.userSettlementDate) < new Date() ? '#ff4444' : '#ffaa00');
+            return `<tr>
+                <td><strong>${r.username}</strong></td>
+                <td style="font-size:11px">${settled}</td>
+                <td style="color:var(--accent)">R$ ${r.price || '25,00'}</td>
+                <td style="font-size:11px;color:#999">${r.message || '—'}</td>
+                <td style="color:${statusColor};font-weight:bold">${status}</td>
+                <td class="td-actions">
+                    ${!r.settlementPaid ? `<button class="btn-action btn-success" onclick="markPersonalChargePaid(${r.id},'${r.username.replace(/'/g,'')}')" title="Marcar como pago">💳 Pago</button>` : ''}
+                </td>
+            </tr>`;
+        }).join('');
+        loadPersonalUsers(); // carrega dropdown
+    } catch (e) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#f44">Erro ao carregar</td></tr>'; }
+}
+
+async function createPersonalCharge() {
+    const userSel = document.getElementById('personalChargeUser').value;
+    const dateSel = document.getElementById('personalChargeDate').value;
+    const noteSel = document.getElementById('personalChargeNote').value;
+
+    if (!userSel) { showToast('Selecione um usuário', '#ff4444'); return; }
+    if (!dateSel) { showToast('Defina uma data de vencimento', '#ff4444'); return; }
+
+    try {
+        const res = await fetch(`/renewal/create-charge/${userSel}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ settlementDate: dateSel, message: noteSel })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showToast(`✅ Cobrança criada para <strong>${data.username}</strong> — R$ ${data.price}`, '#00cc66', 5000);
+            document.getElementById('personalChargeUser').value = '';
+            document.getElementById('personalChargeDate').value = '';
+            document.getElementById('personalChargeNote').value = '';
+            loadPersonalCharges();
+        } else {
+            showToast(data.error || 'Erro ao criar cobrança', '#ff4444');
+        }
+    } catch (e) { showToast('Falha na conexão', '#ff4444'); }
+}
+
+async function markPersonalChargePaid(chargeId, username) {
+    if (!confirm(`Marcar cobrança de "${username}" como paga?`)) return;
+    try {
+        const res = await fetch(`/renewal/${chargeId}/mark-paid`, { method: 'POST', credentials: 'include' });
+        const data = await res.json();
+        if (res.ok) {
+            showToast(`✅ Cobrança de <strong>${data.username}</strong> marcada como paga`, '#00cc66', 5000);
+            loadPersonalCharges();
+        } else {
+            showToast(data.error || 'Erro', '#ff4444');
+        }
+    } catch (e) { showToast('Falha na conexão', '#ff4444'); }
+}

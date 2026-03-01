@@ -13,5 +13,7 @@ router.get('/notifications',requireAuth, ctrl.getNotifications);
 router.get('/all',          requireAuth, ctrl.getAllRequests);
 router.post('/:id/approve', requireAuth, ctrl.approveRequest);
 router.post('/:id/reject',  requireAuth, ctrl.rejectRequest);
+router.post('/create-charge/:targetUserId', requireAuth, ctrl.createChargeForPersonal);
+router.post('/:id/mark-paid', requireAuth, ctrl.markChargePaid);
 
 module.exports = router;

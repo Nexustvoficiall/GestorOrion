@@ -38,6 +38,7 @@ router.post('/users/:userId/reset-token', requireAuth, requireAdmin, enforceTena
 /* Apenas admin pode criar/listar/excluir usuários */
 router.post('/users', requireAuth, requireAdmin, enforceTenant, ctrl.createReseller);
 router.get('/users',  requireAuth, requireAdmin, ctrl.listUsers);
+router.get('/users/:userId', requireAuth, ctrl.getUser);
 router.patch('/users/:userId', requireAuth, requireAdmin, ctrl.editUser);
 router.delete('/users/:userId', requireAuth, requireAdmin, enforceTenant, ctrl.deleteUser);
 

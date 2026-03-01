@@ -377,6 +377,13 @@ async function ensureMasterAdmin() {
 const startServer = async () => {
     try {
         console.log('🔄 Sincronizando banco de dados...');
+        
+        // PRÉ-MENSAGENS para SQLite (cria colunas faltantes ANTES de sync)
+        if (!process.env.DATABASE_URL) {
+            try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "settlementDate" DATETIME`); } catch (_) {}
+            try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "settlementPaid" BOOLEAN DEFAULT 0`); } catch (_) {}
+        }
+        
         await sequelize.sync();
         console.log('✅ Banco conectado e sincronizado');
 
@@ -462,6 +469,8 @@ const startServer = async () => {
             try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "email" VARCHAR(255)`); } catch (_) {}
             try { await sequelize.query(`ALTER TABLE "Tenants" ADD COLUMN "referralCode" VARCHAR(12)`); } catch (_) {}
             try { await sequelize.query(`ALTER TABLE "Tenants" ADD COLUMN "referredBy" VARCHAR(12)`); } catch (_) {}
+            try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "settlementDate" DATETIME`); } catch (_) {}
+            try { await sequelize.query(`ALTER TABLE "Users" ADD COLUMN "settlementPaid" BOOLEAN DEFAULT 0`); } catch (_) {}
         }
         try { await sequelize.query(`UPDATE "Users" SET "role" = 'personal' WHERE "role" = 'reseller'`); } catch (_) {}
         await ensureMasterAdmin();

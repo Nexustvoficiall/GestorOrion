@@ -299,3 +299,78 @@ exports.rejectRequest = async (req, res) => {
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: 'Erro ao rejeitar' }); }
 };
+/* POST /renewal/create-charge/:targetUserId  — admin/master cria cobrança para PESSOAL */
+exports.createChargeForPersonal = async (req, res) => {
+    try {
+        const { role, tenantId } = req.session.user;
+        if (!['admin', 'master'].includes(role)) return res.status(403).json({ error: 'Sem permissão' });
+
+        const targetUserId = parseInt(req.params.targetUserId);
+        const { settlementDate, message } = req.body;
+
+        // Busca o usuário alvo
+        const target = await User.findByPk(targetUserId);
+        if (!target || target.role !== 'personal') return res.status(404).json({ error: 'Usuário ou não é personal' });
+
+        // Valida permissão
+        if (role === 'admin' && target.tenantId !== tenantId) {
+            return res.status(403).json({ error: 'Você não pode cobrar este usuário' });
+        }
+
+        // Cria uma solicitação de cobrança/renovação
+        const prices = await getPricesForRole('personal', tenantId);
+        const price = prices['1m'] || 25; // preço padrão de 1 mês
+
+        const request = await RenewalRequest.create({
+            userId: targetUserId,
+            tenantId: target.tenantId,
+            plan: '1m',
+            price,
+            message: message || `Solicitação de cobrança com vencimento em ${settlementDate || 'data a ser confirmada'}`
+        });
+
+        // Atualiza settlementDate do usuário
+        if (settlementDate) {
+            await target.update({
+                settlementDate: new Date(settlementDate),
+                settlementPaid: false
+            });
+        }
+
+        res.json({
+            ok: true,
+            requestId: request.id,
+            price,
+            username: target.username,
+            settlementDate
+        });
+    } catch (e) {
+        console.error('createChargeForPersonal error:', e);
+        res.status(500).json({ error: 'Erro ao criar cobrança' });
+    }
+};
+
+/* POST /renewal/:id/mark-paid  — marca cobrança como paga e atualiza settlementPaid */
+exports.markChargePaid = async (req, res) => {
+    try {
+        const { role } = req.session.user;
+        if (!['admin', 'master'].includes(role)) return res.status(403).json({ error: 'Sem permissão' });
+
+        const request = await RenewalRequest.findByPk(req.params.id);
+        if (!request) return res.status(404).json({ error: 'Cobrança não encontrada' });
+
+        // Marca como aprovada
+        await request.update({ status: 'approved', respondedAt: new Date() });
+
+        // Marca settlementPaid como true no usuário
+        const user = await User.findByPk(request.userId);
+        if (user) {
+            await user.update({ settlementPaid: true });
+        }
+
+        res.json({ ok: true, username: user?.username });
+    } catch (e) {
+        console.error('markChargePaid error:', e);
+        res.status(500).json({ error: 'Erro ao marcar como pago' });
+    }
+};

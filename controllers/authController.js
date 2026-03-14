@@ -56,13 +56,29 @@ exports.login = async (req, res) => {
             });
         }
 
+        // Se é master e não tem tenantId, busca o primeiro tenant
+        let tenantId = user.tenantId;
+        if (user.role === 'master' && !tenantId) {
+            console.log('🔍 Master sem tenantId, buscando primeiro tenant...');
+            try {
+                const { Tenant } = require('../models');
+                const firstTenant = await Tenant.findOne({ order: [['createdAt', 'ASC']] });
+                if (firstTenant) {
+                    tenantId = firstTenant.id;
+                    console.log('✅ Master atribuído ao tenant:', firstTenant.name);
+                }
+            } catch (e) {
+                console.warn('⚠️  Erro ao buscar tenant para master:', e.message);
+            }
+        }
+
         console.log('📝 Criando sessão para', user.username);
         req.session.user = {
             id:          user.id,
             username:    user.username,
             role:        user.role,
             resellerId:  user.resellerId,
-            tenantId:    user.tenantId || null,
+            tenantId:    tenantId || null,
             firstLogin:  user.firstLogin !== false,
             panelExpiry: user.panelExpiry || null,
             themeColor:  user.themeColor || 'red'

@@ -28,10 +28,31 @@ module.exports = async function enforceTenant(req, res, next) {
                 req.isMaster = true;
                 return next();
             }
-        } catch (e) { /* ignorar erro de lookup */ }
-        req.tenantId = null;
-        req.isMaster = true;
-        return next();
+            // Se não há tenants, cria um tenant padrão para o master
+            console.log('🔧 Criando tenant padrão para master...');
+            const defaultTenant = await Tenant.create({
+                name: 'Master Default',
+                slug: 'master-default',
+                brandName: 'Master Default',
+                primaryColor: '#1a6fff',
+                plan: 'ENTERPRISE',
+                isActive: true,
+                licenseExpiration: null,
+                trialEndsAt: null,
+                referralCode: 'MASTER-' + Date.now(),
+                referredBy: null,
+                email: null
+            });
+            req.tenantId = defaultTenant.id;
+            req.isMaster = true;
+            console.log('✅ Tenant padrão criado:', defaultTenant.id);
+            return next();
+        } catch (e) {
+            console.error('❌ Erro ao criar tenant padrão:', e.message);
+            req.tenantId = null;
+            req.isMaster = true;
+            return next();
+        }
     }
 
     if (!user.tenantId) {
